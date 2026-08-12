@@ -75,6 +75,15 @@ if(cxx_std_20 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         target_compile_options(ozo_coroutine PRIVATE -Wno-ignored-optimization-argument)
     endif()
+
+    # GCC reports spurious -Wmaybe-uninitialized inside coroutine frames once
+    # optimization is enabled: the diagnostic points at the closing brace of the
+    # coroutine rather than at any variable. It is a known GCC limitation in
+    # analysing coroutine frames, not a defect in this example, and it does not
+    # appear in unoptimized builds.
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(ozo_coroutine PRIVATE -Wno-maybe-uninitialized)
+    endif()
 else()
     message(STATUS "Skipping the coroutine example: compiler does not offer C++20")
 endif()

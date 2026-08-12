@@ -125,6 +125,14 @@ if(OZO_BUILD_PG_TESTS AND cxx_std_20 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         target_compile_options(ozo_coroutine_tests PRIVATE -Wno-ignored-optimization-argument)
     endif()
+
+    # See the same suppression in examples/CMakeLists.txt: GCC reports spurious
+    # -Wmaybe-uninitialized inside coroutine frames in optimized builds. The
+    # tests are normally built unoptimized, where it does not fire, but this
+    # keeps a release-mode test build working too.
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(ozo_coroutine_tests PRIVATE -Wno-maybe-uninitialized)
+    endif()
 elseif(OZO_BUILD_PG_TESTS)
     message(STATUS "Skipping the coroutine tests: compiler does not offer C++20")
 endif()
