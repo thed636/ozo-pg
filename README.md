@@ -33,9 +33,10 @@ the `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` workaround required by earlier versi
 Boost. Requiring 1.86 also means `boost::uuids::uuid` has a single representation to
 support, so the library carries no Boost version-conditional code at all.
 
-Note that this is newer than the Boost packaged by most distributions today
-(Ubuntu 24.04 ships 1.83), so you will likely need Boost from upstream, Homebrew,
-Conan or vcpkg.
+Current distributions satisfy this: Ubuntu 26.04 LTS ships Boost 1.90 and Ubuntu
+25.10 ships 1.88, so `apt install libboost-all-dev` is enough. On older releases —
+notably Ubuntu 24.04 LTS, which ships 1.83 — Boost has to come from upstream,
+Homebrew, Conan or vcpkg.
 
 Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++17 on
 Apple Clang (arm64). The CI matrix covers GCC and Clang on Linux and macOS across
