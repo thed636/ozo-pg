@@ -102,6 +102,33 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     target_compile_options(ozo_tests PRIVATE -Wno-ignored-optimization-argument)
 endif()
 
+# C++20 coroutine tests live in their own target rather than in ozo_tests, so
+# that the main suite keeps compiling as C++17 and proves the library still
+# works at its declared minimum standard. They need a database, since the
+# awaitable completion token is only meaningfully exercised against real IO.
+if(OZO_BUILD_PG_TESTS AND cxx_std_20 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+    add_executable(ozo_coroutine_tests integration/coroutine_integration.cpp main.cpp)
+    add_dependencies(ozo_coroutine_tests GoogleTest)
+    target_link_libraries(ozo_coroutine_tests gtest)
+    target_link_libraries(ozo_coroutine_tests gmock)
+    target_link_libraries(ozo_coroutine_tests ozo)
+    target_compile_features(ozo_coroutine_tests PRIVATE cxx_std_20)
+    add_test(ozo_coroutine_tests ozo_coroutine_tests)
+
+    if(CCACHE_FOUND)
+        set_target_properties(ozo_coroutine_tests PROPERTIES RULE_LAUNCH_COMPILE ccache)
+        set_target_properties(ozo_coroutine_tests PROPERTIES RULE_LAUNCH_LINK ccache)
+    endif()
+
+    target_compile_options(ozo_coroutine_tests PRIVATE -Wall -Wextra -pedantic -Werror)
+
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        target_compile_options(ozo_coroutine_tests PRIVATE -Wno-ignored-optimization-argument)
+    endif()
+elseif(OZO_BUILD_PG_TESTS)
+    message(STATUS "Skipping the coroutine tests: compiler does not offer C++20")
+endif()
+
 if(OZO_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
     include(CodeCoverage)
     APPEND_COVERAGE_COMPILER_FLAGS()
