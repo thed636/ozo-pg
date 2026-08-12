@@ -25,7 +25,7 @@ class OzoConan(ConanFile):
     exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE", "AUTHORS"
 
     generators = "cmake_find_package"
-    requires = ("boost/1.86.0", "resource_pool/0.1.0", "libpq/13.1")
+    requires = ("boost/1.88.0", "resource_pool/0.1.0", "libpq/13.1")
 
     def _configure_cmake(self):
         cmake = CMake(self)

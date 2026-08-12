@@ -27,20 +27,24 @@ entity. The original copyright notice is retained as the license requires.
 
 ## Compatibilities
 
-**Boost 1.86 or newer is required.** OZO uses Boost.Asio's default executor model;
+**Boost 1.88 or newer is required.** OZO uses Boost.Asio's default executor model;
 the `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` workaround required by earlier versions is
 **no longer needed and must not be defined** — the legacy TS executor was removed from
-Boost. Requiring 1.86 also means `boost::uuids::uuid` has a single representation to
-support, so the library carries no Boost version-conditional code at all.
+Boost. The library carries no Boost version-conditional code at all.
 
-Current distributions satisfy this: Ubuntu 26.04 LTS ships Boost 1.90 and Ubuntu
-25.10 ships 1.88, so `apt install libboost-all-dev` is enough. On older releases —
-notably Ubuntu 24.04 LTS, which ships 1.83 — Boost has to come from upstream,
-Homebrew, Conan or vcpkg.
+Strictly the code needs 1.86, where `boost::uuids::uuid` gained its current
+representation. The minimum is 1.88 because that is the oldest Boost packaged by a
+currently supported distribution, so every supported configuration can be built and
+tested against distribution packages rather than a hand-built Boost.
+
+`apt install libboost-all-dev` is therefore enough on Ubuntu 26.04 LTS (Boost 1.90)
+and Ubuntu 25.10 (Boost 1.88). On older releases — notably Ubuntu 24.04 LTS, which
+ships 1.83 — Boost has to come from upstream, Homebrew, Conan or vcpkg.
 
 Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++17 on
-Apple Clang (arm64). The CI matrix covers GCC and Clang on Linux and macOS across
-Boost 1.86 and 1.90; see [the workflow](.github/workflows/ci.yml) for the exact set.
+Apple Clang (arm64). CI covers GCC and Clang on Ubuntu 26.04 and macOS, builds the
+1.88 minimum in an Ubuntu 25.10 container, and runs the integration suite against
+PostgreSQL 14 and 17; see [the workflow](.github/workflows/ci.yml) for the exact set.
 
 ## Dependencies
 
