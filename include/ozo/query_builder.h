@@ -197,8 +197,10 @@ namespace literals {
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
+// Note the absence of a space before _SQL: `operator "" _SQL` is deprecated,
+// since an identifier separated from the quotes is reserved for future use.
 template <class CharT, CharT ... c>
-constexpr auto operator "" _SQL() {
+constexpr auto operator""_SQL() {
     return make_query_builder(hana::make_tuple(make_query_text(hana::string<c ...>())));
 }
 
