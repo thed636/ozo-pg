@@ -12,7 +12,7 @@ concurrency:
 
 env:
   # Shared between every job that installs dependencies from apt.
-  APT_PACKAGES: cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+  APT_PACKAGES: cmake ninja-build libboost-all-dev libpq-dev
 
 jobs:
   # Library and examples on the current LTS, which packages Boost 1.90.

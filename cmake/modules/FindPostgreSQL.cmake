@@ -221,9 +221,16 @@ if (PostgreSQL_INCLUDE_DIR)
 endif()
 
 # Did we find anything?
+#
+# PostgreSQL_TYPE_INCLUDE_DIR is deliberately not required. It points at the
+# server headers (catalog/pg_type.h), which ship in a separate package on most
+# distributions, and OZO includes none of them: type OIDs come from
+# ozo/pg/definitions.h, which is generated offline from pg_type.dat by
+# scripts/gen_h_from_dat.py. Requiring it forced a server-development package
+# on every consumer for headers nothing ever opened.
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PostgreSQL
-                                  REQUIRED_VARS PostgreSQL_LIBRARY PostgreSQL_INCLUDE_DIR PostgreSQL_TYPE_INCLUDE_DIR
+                                  REQUIRED_VARS PostgreSQL_LIBRARY PostgreSQL_INCLUDE_DIR
                                   VERSION_VAR PostgreSQL_VERSION_STRING)
 set(PostgreSQL_FOUND  ${POSTGRESQL_FOUND})
 
@@ -247,16 +254,25 @@ endfunction()
 
 # Now try to get the include and library path.
 if(PostgreSQL_FOUND)
+  # Only expose the server include directory when it was actually located, so
+  # that a libpq-only installation does not produce a target carrying a
+  # nonexistent include path.
+  set(_PostgreSQL_INTERFACE_INCLUDES "${PostgreSQL_INCLUDE_DIR}")
+  if(PostgreSQL_TYPE_INCLUDE_DIR)
+    list(APPEND _PostgreSQL_INTERFACE_INCLUDES "${PostgreSQL_TYPE_INCLUDE_DIR}")
+  endif()
+
   if (NOT TARGET PostgreSQL::PostgreSQL)
     add_library(PostgreSQL::PostgreSQL UNKNOWN IMPORTED)
     set_target_properties(PostgreSQL::PostgreSQL PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${PostgreSQL_INCLUDE_DIR};${PostgreSQL_TYPE_INCLUDE_DIR}")
+      INTERFACE_INCLUDE_DIRECTORIES "${_PostgreSQL_INTERFACE_INCLUDES}")
     __postgresql_import_library(PostgreSQL::PostgreSQL PostgreSQL_LIBRARY "")
     __postgresql_import_library(PostgreSQL::PostgreSQL PostgreSQL_LIBRARY "RELEASE")
     __postgresql_import_library(PostgreSQL::PostgreSQL PostgreSQL_LIBRARY "DEBUG")
   endif ()
-  set(PostgreSQL_INCLUDE_DIRS ${PostgreSQL_INCLUDE_DIR} ${PostgreSQL_TYPE_INCLUDE_DIR} )
+  set(PostgreSQL_INCLUDE_DIRS ${_PostgreSQL_INTERFACE_INCLUDES} )
   set(PostgreSQL_LIBRARY_DIRS ${PostgreSQL_LIBRARY_DIR} )
+  unset(_PostgreSQL_INTERFACE_INCLUDES)
 endif()
 
 mark_as_advanced(PostgreSQL_INCLUDE_DIR PostgreSQL_TYPE_INCLUDE_DIR)
