@@ -3,8 +3,9 @@
 #include <ozo/shortcuts.h>
 #include <ozo/failover/role_based.h>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <iostream>
 
@@ -78,7 +79,7 @@ int main(int argc, char **argv) {
         for (auto value : result) {
             std::cout << std::get<0>(value) << std::endl;
         }
-    });
+    }, asio::detached);
 
     io.run();
 

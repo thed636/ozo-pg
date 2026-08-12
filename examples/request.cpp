@@ -2,8 +2,9 @@
 #include <ozo/request.h>
 #include <ozo/shortcuts.h>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <iostream>
 
@@ -70,7 +71,7 @@ int main(int argc, char **argv) {
     // All IO is asynchronous, therefore we have a choice here, what should be our CompletionToken.
     // We use Boost.Coroutines to write asynchronous code in synchronouse style. Coroutine will be
     // called after io.run() is called.
-    asio::spawn(io, coroutine);
+    asio::spawn(io, coroutine, asio::detached);
 
     io.run();
 

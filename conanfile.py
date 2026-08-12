@@ -22,7 +22,7 @@ class OzoConan(ConanFile):
     description = "Conan package for yandex ozo"
     settings = "os", "compiler"
 
-    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENCE", "AUTHORS"
+    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE", "AUTHORS"
 
     generators = "cmake_find_package"
     requires = ("boost/1.74.0", "resource_pool/0.1.0", "libpq/13.1")
@@ -58,7 +58,6 @@ class OzoConan(ConanFile):
         self.cpp_info.components["_ozo"].defines = [
             "BOOST_COROUTINES_NO_DEPRECATION_WARNING",
             "BOOST_HANA_CONFIG_ENABLE_STRING_UDL",
-            "BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT"
         ]
 
         compiler = self.settings.compiler

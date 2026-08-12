@@ -5,8 +5,9 @@
 #include <ozo/request.h>
 #include <ozo/pg/types/integer.h>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <iostream>
 
@@ -135,7 +136,7 @@ int main(int argc, char **argv) {
         // id   name    balance
         // 1    Bob     10000
         // 2    Alice   10000
-    });
+    }, asio::detached);
 
     io.run();
 

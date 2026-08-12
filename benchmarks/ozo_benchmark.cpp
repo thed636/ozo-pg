@@ -4,8 +4,9 @@
 #include <ozo/query_builder.h>
 #include <ozo/request.h>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <iostream>
 
@@ -43,7 +44,7 @@ int main(int argc, char *argv[]) {
             } catch (const std::exception& e) {
                 std::cout << e.what() << '\n';
             }
-        });
+        }, asio::detached);
     }
 
     io.run();

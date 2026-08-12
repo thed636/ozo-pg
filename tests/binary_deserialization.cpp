@@ -751,12 +751,12 @@ TEST_F(recv, should_convert_UUIDOID_to_uuid) {
 
     boost::uuids::uuid result;
     ozo::recv(value, oid_map, result);
-    const boost::uuids::uuid uuid = {
+    const boost::uuids::uuid uuid = {{
         0x12, 0x34, 0x56, 0x78,
         0x90, 0xab, 0xcd, 0xef,
         0x12, 0x34, 0x56, 0x78,
         0x40, 0xab, 0xcd, 0xef
-    };
+    }};
     EXPECT_EQ(result, uuid);
 }
 

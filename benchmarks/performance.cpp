@@ -8,8 +8,9 @@
 
 #include <nlohmann/json.hpp>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 #include <boost/program_options.hpp>
 
 #include <cassert>
@@ -40,7 +41,7 @@ void spawn(asio::io_context& io, std::size_t token, T&& coroutine) {
             std::cerr << "coroutine " << token << " failed: " << e.what() << std::endl;
             std::abort();
         }
-    });
+    }, asio::detached);
 }
 
 enum class query_type {

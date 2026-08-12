@@ -143,13 +143,13 @@ pooled_connection<Rep, Executor>::native_handle() const noexcept {
 template <typename Rep, typename Executor>
 template <typename WaitHandler>
 void pooled_connection<Rep, Executor>::async_wait_write(WaitHandler&& h) {
-    stream_.async_write_some(asio::null_buffers(), std::forward<WaitHandler>(h));
+    stream_.async_wait(stream_type::wait_write, std::forward<WaitHandler>(h));
 }
 
 template <typename Rep, typename Executor>
 template <typename WaitHandler>
 void pooled_connection<Rep, Executor>::async_wait_read(WaitHandler&& h) {
-    stream_.async_read_some(asio::null_buffers(), std::forward<WaitHandler>(h));
+    stream_.async_wait(stream_type::wait_read, std::forward<WaitHandler>(h));
 }
 
 template <typename Rep, typename Executor>

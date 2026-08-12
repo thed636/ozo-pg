@@ -1,7 +1,7 @@
 #pragma once
 
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/executor.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>

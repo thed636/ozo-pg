@@ -7,7 +7,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mo
 # note: boost::coroutine should automatically pull in all the dependencies,
 #       however, due to changes in boost it doesn't always work until CMake
 #       is updated. we therefore look for all the dependencies ourselves.
-find_package(Boost COMPONENTS coroutine context system thread atomic REQUIRED)
+# Boost.System is header-only since Boost 1.69 and its compiled library was
+# removed entirely in later releases, so it must not be requested as a component.
+find_package(Boost COMPONENTS coroutine context thread atomic REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
 # Try and find provided resource pool (e.g. from conan), default to vendored version otherwise
@@ -40,9 +42,6 @@ target_include_directories(ozo INTERFACE
 
 target_compile_definitions(ozo INTERFACE -DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 target_compile_definitions(ozo INTERFACE -DBOOST_HANA_CONFIG_ENABLE_STRING_UDL)
-# For the time OZO may not support Executor TS
-# See https://github.com/yandex/ozo/issues/266
-target_compile_definitions(ozo INTERFACE -DBOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
 
 target_link_libraries(ozo INTERFACE Boost::coroutine)
 target_link_libraries(ozo INTERFACE PostgreSQL::PostgreSQL)

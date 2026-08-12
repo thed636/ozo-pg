@@ -3,6 +3,8 @@
 #include <ozo/connection.h>
 #include <ozo/time_traits.h>
 
+#include <boost/asio/system_executor.hpp>
+
 #include <libpq-fe.h>
 #include <memory>
 
