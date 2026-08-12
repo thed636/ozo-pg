@@ -7,9 +7,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}")
 find_dependency(PostgreSQL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_old_})
 
-find_dependency(Boost COMPONENTS coroutine context system thread atomic)
+find_dependency(Boost 1.88 COMPONENTS coroutine context thread atomic)
 find_dependency(resource_pool)
 
 include("${CMAKE_CURRENT_LIST_DIR}/ozo-targets.cmake")
-target_compile_options(yandex::ozo INTERFACE
+target_compile_options(ozo::ozo INTERFACE
         $<$<OR:$<CXX_COMPILER_ID:Clang,AppleClang>,$<AND:$<CXX_COMPILER_ID:GCC>,$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,9.0>>>:-Wno-gnu-string-literal-operator-template -Wno-gnu-zero-variadic-macro-arguments>)

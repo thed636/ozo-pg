@@ -1,7 +1,8 @@
-# ozo
+# OZO — header-only C++17 async PostgreSQL client built on Boost.Asio
 
-[![Build Status](https://travis-ci.org/yandex/ozo.svg?branch=master)](https://travis-ci.org/yandex/ozo)
-[![codecov](https://codecov.io/gh/yandex/ozo/branch/master/graph/badge.svg)](https://codecov.io/gh/yandex/ozo)
+[![CI](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml)
+
+> **OZO** — from お象 (*o-zō*), Japanese for "the honorable elephant", after PostgreSQL's elephant.
 
 ## What's this
 
@@ -17,16 +18,41 @@ Since the project is on early state of development it lacks of documentation. We
 * learn more about main use-cases from [unit tests](tests/integration/request_integration.cpp),
 * See our [C++Now'18 talk about OZO](https://youtu.be/-1zbaxuUsMA) with [presentation](https://github.com/boostcon/cppnow_presentations_2018/blob/master/05-09-2018_wednesday/design_and_implementation_of_dbms_asynchronous_client_library__roman_siromakha__cppnow_05092018.pdf).
 
+## Provenance
+
+OZO was originally developed at Yandex and released under the PostgreSQL License
+in 2018. Upstream development stopped in 2021. This is an independent fork,
+maintained separately, with no affiliation to or involvement from any Yandex
+entity. The original copyright notice is retained as the license requires.
+
 ## Compatibilities
 
-For the time OZO is not compatible with new executors models that are used by default since Boost 1.74. The `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` macro needs to be defined. See Boost 1.74 [changelog](https://www.boost.org/doc/libs/1_74_0/doc/html/boost_asio/history.html#boost_asio.history.asio_1_18_0___boost_1_74) for the details.
+**Boost 1.88 or newer is required.** OZO uses Boost.Asio's default executor model;
+the `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` workaround required by earlier versions is
+**no longer needed and must not be defined** — the legacy TS executor was removed from
+Boost. The library carries no Boost version-conditional code at all.
+
+Strictly the code needs 1.86, where `boost::uuids::uuid` gained its current
+representation. The minimum is 1.88 because that is the oldest Boost packaged by a
+currently supported distribution, so every supported configuration can be built and
+tested against distribution packages rather than a hand-built Boost.
+
+`apt install libboost-all-dev` is therefore enough on Ubuntu 26.04 LTS (Boost 1.90)
+and Ubuntu 25.10 (Boost 1.88). On older releases — notably Ubuntu 24.04 LTS, which
+ships 1.83 — Boost has to come from upstream, Homebrew, Conan or vcpkg.
+
+Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++17 on
+Apple Clang (arm64). CI covers GCC and Clang on Ubuntu 26.04 and macOS, builds the
+1.88 minimum in an Ubuntu 25.10 container, and runs the integration suite against
+PostgreSQL 14 and 17; see [the workflow](.github/workflows/ci.yml) for the exact set.
+
 ## Dependencies
 
 These things are needed:
 
 * **CMake** is used as build system
 * **GCC** or **Clang** C++ compiler with C++17 support (tested with GCC 7.0, Clang 5.0 and Apple LLVM version 9.0.0)
-* **Boost** >= 1.66 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
+* **Boost** >= 1.86 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
 * **libpq** >= 9.3
 * Ozo uses the [resource_pool](https://github.com/elsid/resource_pool) library as a git submodule, so in case of using a package version, this dependency should be satisfied too.
 

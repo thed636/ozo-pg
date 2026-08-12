@@ -1,7 +1,7 @@
 #pragma once
 
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/executor.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
@@ -12,24 +12,7 @@ namespace asio = boost::asio;
 using asio::async_completion;
 using asio::io_context;
 
-#if BOOST_VERSION < 107000
-
-template <typename CompletionToken, typename Signature,
-    typename Initiation, typename... Args>
-inline decltype(auto) async_initiate(Initiation&& initiation,
-    CompletionToken& token, Args&&... args) {
-  async_completion<CompletionToken, Signature> completion(token);
-
-  initiation(std::move(completion.completion_handler), std::forward<Args>(args)...);
-
-  return completion.result.get();
-}
-
-#else
-
 using asio::async_initiate;
-
-#endif
 
 namespace detail {
 
@@ -56,21 +39,6 @@ struct operation_timer {
         "No operation_timer<> specialization found for specified type");
 };
 
-#if BOOST_VERSION < 107000
-template <>
-struct operation_timer<asio::io_context::executor_type> {
-    using type = asio::steady_timer;
-
-    template <typename TimeConstraint>
-    static type get(const asio::io_context::executor_type& ex, TimeConstraint t) {
-        return type{ex.context(), t};
-    }
-
-    static type get(const asio::io_context::executor_type& ex) {
-        return type{ex.context()};
-    }
-};
-#else
 template <>
 struct operation_timer<asio::io_context::executor_type> {
     using type = asio::steady_timer;
@@ -84,7 +52,6 @@ struct operation_timer<asio::io_context::executor_type> {
         return type{ex};
     }
 };
-#endif
 
 template <typename Executior, typename TimeConstraint>
 inline auto get_operation_timer(const Executior& ex, TimeConstraint t) {

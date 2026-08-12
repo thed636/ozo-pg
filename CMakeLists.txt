@@ -7,7 +7,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mo
 # note: boost::coroutine should automatically pull in all the dependencies,
 #       however, due to changes in boost it doesn't always work until CMake
 #       is updated. we therefore look for all the dependencies ourselves.
-find_package(Boost COMPONENTS coroutine context system thread atomic REQUIRED)
+# Boost 1.88 is the minimum. The library itself needs at least 1.86, where
+# boost::uuids::uuid gained its current representation; 1.88 is required instead
+# because it is the oldest Boost packaged by a currently supported distribution,
+# which keeps CI on distribution packages rather than building Boost by hand.
+# Either way there is no version-conditional code left in the library.
+# Boost.System is header-only since 1.69 and no longer installs a CMake
+# component, so it must not be requested here.
+find_package(Boost 1.88 COMPONENTS coroutine context thread atomic REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
 # Try and find provided resource pool (e.g. from conan), default to vendored version otherwise
@@ -23,7 +30,7 @@ option(OZO_BUILD_EXAMPLES "Enable examples build" OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(ozo INTERFACE)
-add_library(yandex::ozo ALIAS ozo)
+add_library(ozo::ozo ALIAS ozo)
 
 target_compile_features(ozo INTERFACE cxx_std_17)
 
@@ -40,9 +47,6 @@ target_include_directories(ozo INTERFACE
 
 target_compile_definitions(ozo INTERFACE -DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 target_compile_definitions(ozo INTERFACE -DBOOST_HANA_CONFIG_ENABLE_STRING_UDL)
-# For the time OZO may not support Executor TS
-# See https://github.com/yandex/ozo/issues/266
-target_compile_definitions(ozo INTERFACE -DBOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
 
 target_link_libraries(ozo INTERFACE Boost::coroutine)
 target_link_libraries(ozo INTERFACE PostgreSQL::PostgreSQL)
@@ -61,7 +65,7 @@ install(
 
 install(
     EXPORT      ozo-targets
-    NAMESPACE   yandex::
+    NAMESPACE   ozo::
     DESTINATION lib/cmake/ozo
 )
 
@@ -75,7 +79,7 @@ write_basic_package_version_file(
 export(
     EXPORT ozo-targets
     FILE "${CMAKE_CURRENT_BINARY_DIR}/ozo/ozo-targets.cmake"
-    NAMESPACE yandex::
+    NAMESPACE ozo::
 )
 
 configure_file(cmake/ozo-config.cmake

@@ -5,8 +5,6 @@
 
 #include <ozo/asio.h>
 
-#include <boost/asio/handler_invoke_hook.hpp>
-
 namespace ozo {
 namespace detail {
 

@@ -4,8 +4,15 @@ include(ExternalProject)
 ExternalProject_Add(
     GoogleTest
     GIT_REPOSITORY "https://github.com/google/googletest.git"
-    GIT_TAG release-1.10.0
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
+    GIT_TAG v1.15.2
+    # GoogleTest must be built with the same C++ standard as the tests that
+    # consume it: its std::string_view matcher specializations are only
+    # compiled under C++17, and linking a C++14 build against C++17 test
+    # objects fails with undefined Matcher<string_view> symbols.
+    CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
+        -DCMAKE_CXX_STANDARD=17
+        -DCMAKE_CXX_STANDARD_REQUIRED=ON
     UPDATE_COMMAND ""
     LOG_DOWNLOAD ON
     LOG_CONFIGURE ON

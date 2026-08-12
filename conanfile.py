@@ -17,15 +17,15 @@ class OzoConan(ConanFile):
     name = "ozo"
     version = get_version()
     license = "PostgreSQL"
-    topics = ("ozo", "yandex", "postgres", "postgresql", "cpp17", "database", "db", "asio")
-    url = "https://github.com/yandex/ozo"
-    description = "Conan package for yandex ozo"
+    topics = ("ozo", "postgres", "postgresql", "cpp17", "database", "db", "asio", "async", "header-only")
+    url = "https://github.com/thed636/ozo-pg"
+    description = "Header-only C++17 async PostgreSQL client built on Boost.Asio"
     settings = "os", "compiler"
 
-    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENCE", "AUTHORS"
+    exports_sources = "include/*", "CMakeLists.txt", "cmake/*", "LICENSE", "AUTHORS"
 
     generators = "cmake_find_package"
-    requires = ("boost/1.74.0", "resource_pool/0.1.0", "libpq/13.1")
+    requires = ("boost/1.88.0", "resource_pool/0.1.0", "libpq/13.1")
 
     def _configure_cmake(self):
         cmake = CMake(self)
@@ -58,7 +58,6 @@ class OzoConan(ConanFile):
         self.cpp_info.components["_ozo"].defines = [
             "BOOST_COROUTINES_NO_DEPRECATION_WARNING",
             "BOOST_HANA_CONFIG_ENABLE_STRING_UDL",
-            "BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT"
         ]
 
         compiler = self.settings.compiler
@@ -71,7 +70,7 @@ class OzoConan(ConanFile):
 
         self.cpp_info.filenames["cmake_find_package"] = "ozo"
         self.cpp_info.filenames["cmake_find_package_multi"] = "ozo"
-        self.cpp_info.names["cmake_find_package"] = "yandex"
-        self.cpp_info.names["cmake_find_package_multi"] = "yandex"
+        self.cpp_info.names["cmake_find_package"] = "ozo"
+        self.cpp_info.names["cmake_find_package_multi"] = "ozo"
         self.cpp_info.components["_ozo"].names["cmake_find_package"] = "ozo"
         self.cpp_info.components["_ozo"].names["cmake_find_package_multi"] = "ozo"

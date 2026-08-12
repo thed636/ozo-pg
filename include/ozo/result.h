@@ -390,7 +390,14 @@ public:
      * @return native_handle_type --- native handle representation
      */
     native_handle_type native_handle() const noexcept {
-        return std::addressof(*handle_);
+        // The handle is empty after the result has been moved out, and
+        // dereferencing an empty unique_ptr is undefined behaviour even when
+        // only its address is taken. It happened to yield nullptr in practice,
+        // which is the documented result for an empty object, but a hardened
+        // libstdc++ aborts on it. The emptiness check rather than .get() keeps
+        // this working for handle_type instantiations that are raw pointers,
+        // as the test mocks use.
+        return handle_ ? std::addressof(*handle_) : native_handle_type{};
     }
 
     /**

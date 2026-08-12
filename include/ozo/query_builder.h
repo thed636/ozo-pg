@@ -183,10 +183,32 @@ struct get_query_params_impl<query_builder<Ts...>> {
 
 namespace literals {
 
+// The string literal operator template that _SQL is built on is a GNU
+// extension which ISO C++ never adopted, so a conforming compiler is right to
+// diagnose it under -Wpedantic. Suppress it at the declaration rather than
+// requiring every consumer to pass a -Wno-... flag of their own; GCC in
+// particular offers no finer-grained switch than -Wpedantic for this.
+// Note that __GNUC__ is also defined by Clang, hence the explicit ordering.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-string-literal-operator-template"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
+// Note the absence of a space before _SQL: `operator "" _SQL` is deprecated,
+// since an identifier separated from the quotes is reserved for future use.
 template <class CharT, CharT ... c>
-constexpr auto operator "" _SQL() {
+constexpr auto operator""_SQL() {
     return make_query_builder(hana::make_tuple(make_query_text(hana::string<c ...>())));
 }
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 } // namespace literals
 } // namespace ozo

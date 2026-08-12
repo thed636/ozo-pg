@@ -240,6 +240,19 @@ struct async_get_result_op : boost::asio::coroutine {
             case PGRES_COPY_BOTH:
             case PGRES_NONFATAL_ERROR:
                 break;
+            // Statuses below are reachable only via libpq features OZO does not
+            // use yet (pipeline mode, chunked rows). They are enumerated
+            // explicitly so that the switch stays exhaustive and any status
+            // added by a future libpq is caught at compile time.
+#ifdef LIBPQ_HAS_PIPELINING
+            case PGRES_PIPELINE_SYNC:
+            case PGRES_PIPELINE_ABORTED:
+                break;
+#endif
+#ifdef LIBPQ_HAS_CHUNK_MODE
+            case PGRES_TUPLES_CHUNK:
+                break;
+#endif
         }
 
         get_connection(ctx_).set_error_context(get_result_status_name(status));

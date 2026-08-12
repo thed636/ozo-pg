@@ -5,6 +5,7 @@
 #include <ozo/shortcuts.h>
 
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <algorithm>
 #include <future>
@@ -55,7 +56,7 @@ TEST(connection_pool_integration, get_connection_twice_should_get_the_same) {
 
         ASSERT_NE(pg_backend_pid1, 0);
         EXPECT_EQ(pg_backend_pid1, pg_backend_pid2);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -89,7 +90,7 @@ TEST(connection_pool_integration, request_should_wait_until_connection_is_availa
             ASSERT_EQ(1u, result.size());
 
             *pg_backend_pid = std::get<0>(result[0]);
-        });
+        }, asio::detached);
     }
 
     io.run();
@@ -133,7 +134,7 @@ TEST(connection_pool_integration, should_serve_concurrent_requests) {
 
                 pg_backend_pid = std::get<0>(result[0]);
                 guard.reset();
-            });
+            }, asio::detached);
 
             io.run();
 

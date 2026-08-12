@@ -4,6 +4,7 @@
 #include <ozo/shortcuts.h>
 
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -43,10 +44,10 @@ TEST(cancel, should_cancel_operation) {
                 auto guard = boost::asio::make_work_guard(io);
                 ozo::cancel(std::move(handle), io, 5s, yield[ec]);
             }
-        });
+        }, boost::asio::detached);
         ozo::execute(conn, "SELECT pg_sleep(1000000)"_SQL, yield[ec]);
         EXPECT_EQ(ec, ozo::sqlstate::query_canceled);
-    });
+    }, boost::asio::detached);
 
     io.run();
 }
@@ -77,10 +78,10 @@ TEST(cancel, should_stop_cancel_operation_on_zero_timeout) {
                 ozo::cancel(std::move(handle), io, 0s, yield[ec]);
                 EXPECT_EQ(ec, boost::asio::error::timed_out);
             }
-        });
+        }, boost::asio::detached);
         ozo::execute(conn, "SELECT pg_sleep(1000000)"_SQL, 2s, yield[ec]);
         EXPECT_EQ(ec, boost::asio::error::timed_out);
-    });
+    }, boost::asio::detached);
 
     io.run();
 }

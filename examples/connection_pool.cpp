@@ -3,8 +3,9 @@
 #include <ozo/request.h>
 #include <ozo/shortcuts.h>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <iostream>
 
@@ -105,7 +106,7 @@ int main(int argc, char **argv) {
     // We use Boost.Coroutines to write asynchronouse code in synchronouse style. Run two coroutines
     // to demonstrate concurrent request from pool and connection reusage.
     for (int i = 0; i < 2; ++i)
-        asio::spawn(io, coroutine);
+        asio::spawn(io, coroutine, asio::detached);
 
     io.run();
 

@@ -5,6 +5,7 @@
 #include <ozo/transaction.h>
 
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -29,7 +30,7 @@ TEST(transaction_integration, create_schema_in_transaction_and_commit_then_table
         ozo::request(transaction, "CREATE SCHEMA ozo_test;"_SQL, std::ref(result), yield);
         auto connection = ozo::commit(std::move(transaction), yield);
         ozo::request(connection, "DROP SCHEMA ozo_test;"_SQL, std::ref(result), yield);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -49,7 +50,7 @@ TEST(transaction_integration, create_schema_in_transaction_and_rollback_then_tab
         ozo::error_code ec;
         ozo::request(connection, "DROP SCHEMA ozo_test;"_SQL, std::ref(result), yield[ec]);
         EXPECT_EQ(ec, ozo::error_condition(ozo::sqlstate::invalid_schema_name));
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -71,7 +72,7 @@ TEST(transaction_integration, transaction_level_options_should_not_cause_sql_syn
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto level = ozo::isolation_level::repeatable_read;
@@ -86,7 +87,7 @@ TEST(transaction_integration, transaction_level_options_should_not_cause_sql_syn
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto level = ozo::isolation_level::read_committed;
@@ -101,7 +102,7 @@ TEST(transaction_integration, transaction_level_options_should_not_cause_sql_syn
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto level = ozo::isolation_level::read_uncommitted;
@@ -116,7 +117,7 @@ TEST(transaction_integration, transaction_level_options_should_not_cause_sql_syn
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -138,7 +139,7 @@ TEST(transaction_integration, transaction_mode_options_should_not_cause_sql_synt
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto mode = ozo::transaction_mode::read_only;
@@ -153,7 +154,7 @@ TEST(transaction_integration, transaction_mode_options_should_not_cause_sql_synt
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -176,7 +177,7 @@ TEST(transaction_integration, transaction_deferrability_options_should_not_gener
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto defer = !ozo::deferrable;
@@ -191,7 +192,7 @@ TEST(transaction_integration, transaction_deferrability_options_should_not_gener
         EXPECT_FALSE(ec);
         ozo::rollback(std::move(transaction), yield[ec]);
         EXPECT_FALSE(ec);
-    });
+    }, asio::detached);
 
     io.run();
 }

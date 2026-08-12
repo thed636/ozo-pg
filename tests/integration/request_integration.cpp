@@ -8,6 +8,7 @@
 #include <ozo/pg/types/ltree.h>
 
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -209,7 +210,7 @@ TEST(request, should_fill_oid_map_when_oid_map_is_not_empty) {
         ASSERT_REQUEST_OK(ec, conn);
         auto conn_with_oid_map = ozo::get_connection(conn_info_with_oid_map[io], yield);
         EXPECT_NE(ozo::type_oid<custom_type>(ozo::unwrap_connection(conn_with_oid_map).oid_map()), ozo::null_oid);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -227,7 +228,7 @@ TEST(request, should_request_with_connection_pool) {
         ozo::error_code ec{};
         auto conn = ozo::request(pool[io], "SELECT 1"_SQL, std::ref(result), yield[ec]);
         ASSERT_REQUEST_OK(ec, conn);
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -307,7 +308,7 @@ TEST(request, should_return_custom_composite) {
             std::make_tuple(custom_type{2, "two"})
         ));
 
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -347,7 +348,7 @@ TEST(request, should_send_custom_composite) {
             std::make_tuple(custom_type{2, "two"})
         ));
 
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -472,7 +473,7 @@ TEST(request, should_send_and_receive_composite_with_empty_optional) {
         ASSERT_REQUEST_OK(ec, conn);
 
         EXPECT_THAT(result, ElementsAre(value));
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -534,7 +535,7 @@ TEST(request, should_send_and_receive_composite_with_jsonb_field) {
         ASSERT_REQUEST_OK(ec, conn);
 
         EXPECT_THAT(result, ElementsAre(with_jsonb {{R"({"foo": "bar"})"}}));
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -552,7 +553,7 @@ TEST(request, should_send_and_receive_ltree) {
             const ozo::connection_info conn_info(OZO_PG_TEST_CONNINFO);
             ozo::error_code ec;
             auto conn = ozo::execute(conn_info[io],
-                                     "DROP EXTENSION IF EXISTS ltree"_SQL, yield[ec]);
+                                     "DROP EXTENSION IF EXISTS ltree CASCADE"_SQL, yield[ec]);
             ASSERT_REQUEST_OK(ec, conn);
             ozo::execute(conn, "CREATE EXTENSION ltree"_SQL, yield[ec]);
             ASSERT_REQUEST_OK(ec, conn);
@@ -574,7 +575,7 @@ TEST(request, should_send_and_receive_ltree) {
         ASSERT_REQUEST_OK(ec, conn);
         EXPECT_THAT(result, ElementsAre(ozo::pg::ltree(value)));
         EXPECT_FALSE(ozo::connection_bad(conn));
-    });
+    }, asio::detached);
 
     io.run();
 }
@@ -592,7 +593,7 @@ TEST(request, should_send_and_receive_composite_with_ltree_field) {
             const ozo::connection_info conn_info(OZO_PG_TEST_CONNINFO);
             ozo::error_code ec;
             auto conn = ozo::execute(conn_info[io],
-                                     "DROP EXTENSION IF EXISTS ltree"_SQL, yield[ec]);
+                                     "DROP EXTENSION IF EXISTS ltree CASCADE"_SQL, yield[ec]);
             ASSERT_REQUEST_OK(ec, conn);
             ozo::execute(conn, "CREATE EXTENSION ltree"_SQL, yield[ec]);
             ASSERT_REQUEST_OK(ec, conn);
@@ -626,7 +627,7 @@ TEST(request, should_send_and_receive_composite_with_ltree_field) {
         ASSERT_REQUEST_OK(ec, conn);
 
         EXPECT_THAT(result, ElementsAre(with_ltree {{"1.2.3.4"}}));
-    });
+    }, asio::detached);
 
     io.run();
 }
