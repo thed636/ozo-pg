@@ -1,0 +1,191 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, modernize-boost]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Library + examples across the Boost versions shipped by each platform.
+  # Ubuntu 22.04 -> Boost 1.74 (oldest supported), Ubuntu 24.04 -> Boost 1.83,
+  # macOS -> current Homebrew Boost. This spans the executor-model transition.
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "ubuntu-22.04 · gcc",   os: ubuntu-22.04, cc: gcc,   cxx: g++ }
+          - { name: "ubuntu-22.04 · clang", os: ubuntu-22.04, cc: clang, cxx: clang++ }
+          - { name: "ubuntu-24.04 · gcc",   os: ubuntu-24.04, cc: gcc,   cxx: g++ }
+          - { name: "ubuntu-24.04 · clang", os: ubuntu-24.04, cc: clang, cxx: clang++ }
+          - { name: "macos-14 · applecl",   os: macos-14,     cc: clang, cxx: clang++ }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja boost libpq
+
+      - name: Report toolchain versions
+        run: |
+          ${{ matrix.cxx }} --version
+          cmake --version
+          echo "Boost: $(grep -h 'define BOOST_LIB_VERSION' \
+            /usr/include/boost/version.hpp \
+            "$(brew --prefix boost 2>/dev/null)/include/boost/version.hpp" 2>/dev/null | head -1)"
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          EXTRA=""
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            EXTRA="-DPostgreSQL_ROOT=$(brew --prefix libpq)"
+          fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DOZO_BUILD_EXAMPLES=ON \
+            $EXTRA
+
+      - name: Build library and examples
+        run: cmake --build build -j
+
+  # Unit tests. Kept separate from `build` because the suite pulls GoogleTest
+  # via ExternalProject and compiles with -Werror, so it is the job most likely
+  # to need attention on a new compiler.
+  unit-tests:
+    name: unit tests · ${{ matrix.os }} · ${{ matrix.cxx }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, cc: gcc,   cxx: g++ }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++ }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOZO_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run
+        run: ctest --test-dir build --output-on-failure
+
+  # Integration tests against a real PostgreSQL.
+  integration-tests:
+    name: integration tests · postgres ${{ matrix.pg }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [14, 17]
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}-alpine
+        env:
+          POSTGRES_PASSWORD: ozo
+          POSTGRES_USER: ozo
+          POSTGRES_DB: ozo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ozo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DOZO_BUILD_TESTS=ON \
+            -DOZO_BUILD_PG_TESTS=ON \
+            -DOZO_PG_TEST_CONNINFO="host=localhost port=5432 user=ozo password=ozo dbname=ozo"
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run
+        run: ctest --test-dir build --output-on-failure
+
+  # Verifies the installed package works for a downstream consumer,
+  # i.e. that find_package(ozo) + ozo::ozo actually resolves.
+  install-and-consume:
+    name: install & consume (ozo::ozo)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+
+      - name: Install ozo
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX="$PWD/prefix"
+          cmake --build build --target install
+
+      - name: Consume via find_package
+        run: |
+          mkdir -p consumer && cd consumer
+          cat > CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.12)
+          project(consumer CXX)
+          find_package(ozo REQUIRED)
+          add_executable(consumer main.cpp)
+          target_link_libraries(consumer PRIVATE ozo::ozo)
+          EOF
+          cat > main.cpp <<'EOF'
+          #include <ozo/ozo.h>
+          int main() { return 0; }
+          EOF
+          cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/prefix"
+          cmake --build build
