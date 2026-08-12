@@ -25,7 +25,7 @@ option(OZO_BUILD_EXAMPLES "Enable examples build" OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(ozo INTERFACE)
-add_library(yandex::ozo ALIAS ozo)
+add_library(ozo::ozo ALIAS ozo)
 
 target_compile_features(ozo INTERFACE cxx_std_17)
 
@@ -60,7 +60,7 @@ install(
 
 install(
     EXPORT      ozo-targets
-    NAMESPACE   yandex::
+    NAMESPACE   ozo::
     DESTINATION lib/cmake/ozo
 )
 
@@ -74,7 +74,7 @@ write_basic_package_version_file(
 export(
     EXPORT ozo-targets
     FILE "${CMAKE_CURRENT_BINARY_DIR}/ozo/ozo-targets.cmake"
-    NAMESPACE yandex::
+    NAMESPACE ozo::
 )
 
 configure_file(cmake/ozo-config.cmake

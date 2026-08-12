@@ -1,7 +1,8 @@
-# ozo
+# OZO — header-only C++17 async PostgreSQL client built on Boost.Asio
 
-[![Build Status](https://travis-ci.org/yandex/ozo.svg?branch=master)](https://travis-ci.org/yandex/ozo)
-[![codecov](https://codecov.io/gh/yandex/ozo/branch/master/graph/badge.svg)](https://codecov.io/gh/yandex/ozo)
+[![CI](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml)
+
+> **OZO** — from お象 (*o-zō*), Japanese for "the honorable elephant", after PostgreSQL's elephant.
 
 ## What's this
 
@@ -17,9 +18,23 @@ Since the project is on early state of development it lacks of documentation. We
 * learn more about main use-cases from [unit tests](tests/integration/request_integration.cpp),
 * See our [C++Now'18 talk about OZO](https://youtu.be/-1zbaxuUsMA) with [presentation](https://github.com/boostcon/cppnow_presentations_2018/blob/master/05-09-2018_wednesday/design_and_implementation_of_dbms_asynchronous_client_library__roman_siromakha__cppnow_05092018.pdf).
 
+## Provenance
+
+OZO was originally developed at Yandex and released under the PostgreSQL License
+in 2018. Upstream development stopped in 2021. This is an independent fork,
+maintained separately, with no affiliation to or involvement from any Yandex
+entity. The original copyright notice is retained as the license requires.
+
 ## Compatibilities
 
-For the time OZO is not compatible with new executors models that are used by default since Boost 1.74. The `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` macro needs to be defined. See Boost 1.74 [changelog](https://www.boost.org/doc/libs/1_74_0/doc/html/boost_asio/history.html#boost_asio.history.asio_1_18_0___boost_1_74) for the details.
+OZO uses Boost.Asio's default executor model. The `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT`
+workaround required by earlier versions is **no longer needed and must not be defined** —
+the legacy TS executor was removed from Boost.
+
+Verified against Boost 1.90, libpq 18, CMake 4.4 and C++17 on Apple Clang (arm64).
+The CI matrix covers GCC and Clang on Linux and macOS; see
+[the workflow](.github/workflows/ci.yml) for the exact set.
+
 ## Dependencies
 
 These things are needed:
