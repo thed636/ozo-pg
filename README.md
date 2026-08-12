@@ -27,13 +27,19 @@ entity. The original copyright notice is retained as the license requires.
 
 ## Compatibilities
 
-OZO uses Boost.Asio's default executor model. The `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT`
-workaround required by earlier versions is **no longer needed and must not be defined** —
-the legacy TS executor was removed from Boost.
+**Boost 1.86 or newer is required.** OZO uses Boost.Asio's default executor model;
+the `BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT` workaround required by earlier versions is
+**no longer needed and must not be defined** — the legacy TS executor was removed from
+Boost. Requiring 1.86 also means `boost::uuids::uuid` has a single representation to
+support, so the library carries no Boost version-conditional code at all.
 
-Verified against Boost 1.90, libpq 18, CMake 4.4 and C++17 on Apple Clang (arm64).
-The CI matrix covers GCC and Clang on Linux and macOS; see
-[the workflow](.github/workflows/ci.yml) for the exact set.
+Note that this is newer than the Boost packaged by most distributions today
+(Ubuntu 24.04 ships 1.83), so you will likely need Boost from upstream, Homebrew,
+Conan or vcpkg.
+
+Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++17 on
+Apple Clang (arm64). The CI matrix covers GCC and Clang on Linux and macOS across
+Boost 1.86 and 1.90; see [the workflow](.github/workflows/ci.yml) for the exact set.
 
 ## Dependencies
 
@@ -41,7 +47,7 @@ These things are needed:
 
 * **CMake** is used as build system
 * **GCC** or **Clang** C++ compiler with C++17 support (tested with GCC 7.0, Clang 5.0 and Apple LLVM version 9.0.0)
-* **Boost** >= 1.66 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
+* **Boost** >= 1.86 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
 * **libpq** >= 9.3
 * Ozo uses the [resource_pool](https://github.com/elsid/resource_pool) library as a git submodule, so in case of using a package version, this dependency should be satisfied too.
 

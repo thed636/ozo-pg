@@ -12,10 +12,11 @@ namespace ozo {
 
 namespace detail {
 
-// Boost 1.86 replaced the raw `uuid::data` array with a proxy type that is
-// implicitly convertible to `std::uint8_t(&)[16]`. Binding through an explicit
-// array reference works for both the old and the new representation, and keeps
-// the raw-data stream overloads applicable.
+// Since Boost 1.86 `uuid::data` is a proxy type rather than a raw array, so it
+// does not satisfy the RawData concepts the stream overloads are constrained
+// on. It converts implicitly to `std::uint8_t(&)[16]`, so binding through an
+// explicit array reference keeps those overloads applicable. Boost's own
+// `uuid::repr_type` alias cannot be used here because it is private.
 using uuid_repr = std::uint8_t[16];
 
 } // namespace detail

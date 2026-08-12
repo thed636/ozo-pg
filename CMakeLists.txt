@@ -7,9 +7,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mo
 # note: boost::coroutine should automatically pull in all the dependencies,
 #       however, due to changes in boost it doesn't always work until CMake
 #       is updated. we therefore look for all the dependencies ourselves.
-# Boost.System is header-only since Boost 1.69 and its compiled library was
-# removed entirely in later releases, so it must not be requested as a component.
-find_package(Boost COMPONENTS coroutine context thread atomic REQUIRED)
+# Boost 1.86 is the minimum: it is where boost::uuids::uuid gained its current
+# representation, and requiring it lets the library target one Asio executor
+# model without version-conditional code.
+# Boost.System is header-only since 1.69 and no longer installs a CMake
+# component, so it must not be requested here.
+find_package(Boost 1.86 COMPONENTS coroutine context thread atomic REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
 # Try and find provided resource pool (e.g. from conan), default to vendored version otherwise

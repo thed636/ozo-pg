@@ -1,0 +1,48 @@
+@startuml
+scale 350 width
+[*] -down-> wait_pipeline
+
+wait_pipeline --> autonomus : SystemOperable
+wait_pipeline --> remote : RequestRemoteControl
+wait_pipeline --> panic : SystemCritical
+
+autonomus : on_exit / chassis_stop()
+autonomus : ControlTarget / chassis_move()
+autonomus : BootLidLock / send_event(boot_lid, BootLidLock)
+autonomus : BootLidUnlock / send_event(boot_lid, BootLidUnlock)
+autonomus : PipelineIndicationDefault / send_event(indication, PipelineIndicationDefault)
+autonomus : PipelineIndicationWarning / send_event(indication, PipelineIndicationWarning)
+autonomus --> panic : SystemCritical
+autonomus --> remote : RequestRemoteControl
+autonomus --> remote : AlarmLongSound / send_event(alarm, AlarmLongSound)
+autonomus --> remote : AlarmShortSound / send_event(alarm, AlarmShortSound)
+autonomus : InnerLampEnable / send_event(inner_lamp, InnerLampEnable)
+
+panic: ControlTarget / chassis_stop()
+panic: AlarmLongSound / send_event(alarm, AlarmLongSound)
+panic: AlarmShortSound / send_event(alarm, AlarmShortSound)
+panic: InnerLampEnable / send_event(inner_lamp, InnerLampEnable)
+panic --> remote: RequestRemoteControl
+
+remote: on_entry / execute_chassis_stop()
+remote: on_exit / (disarm_timer(), stop_execute(), chassis_stop(), chassis_enable_safety_guard())
+remote: RemoteCommand / (execute_remote(), arm_timer(remote_timeout))
+remote: ResetCurrentLimiter / (reset_current_limiter())
+remote: BootLidLock / send_event(boot_lid, BootLidLock),
+remote: BootLidUnlock / send_event(boot_lid, BootLidUnlock),
+remote: SafetyGuardOn / chassis_enable_safety_guard(),
+remote: SafetyGuardOff / chassis_disable_safety_guard(),
+remote: AlarmLongSound / send_event(alarm, AlarmLongSound),
+remote: AlarmShortSound / send_event(alarm, AlarmShortSound),
+remote: InnerLampEnable / send_event(inner_lamp, InnerLampEnable),
+remote: At / (disarm_timer(), execute_chassis_stop())
+remote --> autonomus: ReleaseRemoteControl [is(diagnostics, operable)]
+remote --> panic: ReleaseRemoteControl [is(diagnostics, critical)]
+remote --> wait_pipeline: ReleaseRemoteControl [is(diagnostics, wait_pipeline)]
+remote --> manual: RequestManualMode
+
+manual: on_entry / (chassis_enable_neutral_mode(), execute_chassis_stop())
+manual: on_exit / (chassis_disable_neutral_mode())
+manual: TechLidUnlock / send_event(tech_lid, TechLidUnlock)
+manual --> remote: ReleaseManualMode
+@enduml

@@ -10,10 +10,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Oldest supported Boost, used by the jobs that do not sweep versions.
+  BOOST_MIN: 1.86.0
+
 jobs:
-  # Library + examples across the Boost versions shipped by each platform.
-  # Ubuntu 22.04 -> Boost 1.74 (oldest supported), Ubuntu 24.04 -> Boost 1.83,
-  # macOS -> current Homebrew Boost. This spans the executor-model transition.
+  # Library and examples across the supported Boost range and both compilers.
+  # 1.86 is the declared minimum, 1.90 the current release; Linux builds Boost
+  # from source because no Ubuntu runner packages anything recent enough.
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -21,76 +25,51 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "ubuntu-22.04 · gcc",   os: ubuntu-22.04, cc: gcc,   cxx: g++ }
-          - { name: "ubuntu-22.04 · clang", os: ubuntu-22.04, cc: clang, cxx: clang++ }
-          - { name: "ubuntu-24.04 · gcc",   os: ubuntu-24.04, cc: gcc,   cxx: g++ }
-          - { name: "ubuntu-24.04 · clang", os: ubuntu-24.04, cc: clang, cxx: clang++ }
-          - { name: "macos-14 · applecl",   os: macos-14,     cc: clang, cxx: clang++ }
+          - { name: "linux · gcc · boost 1.86",   os: ubuntu-24.04, cc: gcc,   cxx: g++,     boost: 1.86.0 }
+          - { name: "linux · gcc · boost 1.90",   os: ubuntu-24.04, cc: gcc,   cxx: g++,     boost: 1.90.0 }
+          - { name: "linux · clang · boost 1.86", os: ubuntu-24.04, cc: clang, cxx: clang++, boost: 1.86.0 }
+          - { name: "linux · clang · boost 1.90", os: ubuntu-24.04, cc: clang, cxx: clang++, boost: 1.90.0 }
+          - { name: "macos · applecl · brew",     os: macos-14,     cc: clang, cxx: clang++, boost: 1.90.0 }
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install cmake ninja boost libpq
-
-      - name: Report toolchain versions
-        run: |
-          ${{ matrix.cxx }} --version
-          cmake --version
-          echo "Boost: $(grep -h 'define BOOST_LIB_VERSION' \
-            /usr/include/boost/version.hpp \
-            "$(brew --prefix boost 2>/dev/null)/include/boost/version.hpp" 2>/dev/null | head -1)"
+      - uses: ./.github/actions/setup-deps
+        with:
+          boost-version: ${{ matrix.boost }}
 
       - name: Configure
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: |
-          EXTRA=""
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            EXTRA="-DPostgreSQL_ROOT=$(brew --prefix libpq)"
-          fi
-          cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DOZO_BUILD_EXAMPLES=ON \
-            $EXTRA
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DOZO_BUILD_EXAMPLES=ON
 
       - name: Build library and examples
         run: cmake --build build -j
 
-  # Unit tests. Kept separate from `build` because the suite pulls GoogleTest
-  # via ExternalProject and compiles with -Werror, so it is the job most likely
-  # to need attention on a new compiler.
+  # Unit tests. Separate from `build` because the suite pulls GoogleTest via
+  # ExternalProject and compiles with -Werror, making it the job most likely to
+  # need attention on a new compiler or Boost release.
   unit-tests:
-    name: unit tests · ${{ matrix.os }} · ${{ matrix.cxx }}
-    runs-on: ${{ matrix.os }}
+    name: unit tests · ${{ matrix.cxx }} · boost ${{ matrix.boost }}
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-22.04, cc: gcc,   cxx: g++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++ }
+          - { cc: gcc,   cxx: g++,     boost: 1.86.0 }
+          - { cc: clang, cxx: clang++, boost: 1.90.0 }
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+      - uses: ./.github/actions/setup-deps
+        with:
+          boost-version: ${{ matrix.boost }}
 
       - name: Configure
         env:
@@ -104,7 +83,9 @@ jobs:
       - name: Run
         run: ctest --test-dir build --output-on-failure
 
-  # Integration tests against a real PostgreSQL.
+  # Integration tests against real PostgreSQL. Note that each run gets a fresh
+  # database, which is what let the non-idempotent ltree tests go unnoticed for
+  # years; the suite is run twice here so that state left behind fails CI.
   integration-tests:
     name: integration tests · postgres ${{ matrix.pg }}
     runs-on: ubuntu-24.04
@@ -132,11 +113,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+      - uses: ./.github/actions/setup-deps
+        with:
+          boost-version: ${{ env.BOOST_MIN }}
 
       - name: Configure
         run: |
@@ -152,8 +131,13 @@ jobs:
       - name: Run
         run: ctest --test-dir build --output-on-failure
 
-  # Verifies the installed package works for a downstream consumer,
-  # i.e. that find_package(ozo) + ozo::ozo actually resolves.
+      - name: Run again to catch tests that leave state behind
+        run: ctest --test-dir build --output-on-failure
+
+  # Verifies the installed package works for a downstream consumer: that
+  # find_package(ozo) resolves, that ozo::ozo is the target, and that no
+  # removed Boost component is still requested by the installed config files.
+  # An in-tree build passing every test does not prove any of this.
   install-and-consume:
     name: install & consume (ozo::ozo)
     runs-on: ubuntu-24.04
@@ -162,11 +146,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build libboost-all-dev libpq-dev postgresql-server-dev-all
+      - uses: ./.github/actions/setup-deps
+        with:
+          boost-version: ${{ env.BOOST_MIN }}
 
       - name: Install ozo
         run: |
@@ -185,7 +167,9 @@ jobs:
           EOF
           cat > main.cpp <<'EOF'
           #include <ozo/ozo.h>
-          int main() { return 0; }
+          #include <ozo/request.h>
+          int main() { ozo::io_context io; (void)io; return 0; }
           EOF
-          cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/prefix"
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/prefix;$CMAKE_PREFIX_PATH"
           cmake --build build
