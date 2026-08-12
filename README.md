@@ -18,6 +18,47 @@ Since the project is on early state of development it lacks of documentation. We
 * learn more about main use-cases from [unit tests](tests/integration/request_integration.cpp),
 * See our [C++Now'18 talk about OZO](https://youtu.be/-1zbaxuUsMA) with [presentation](https://github.com/boostcon/cppnow_presentations_2018/blob/master/05-09-2018_wednesday/design_and_implementation_of_dbms_asynchronous_client_library__roman_siromakha__cppnow_05092018.pdf).
 
+### C++20 coroutines
+
+Every OZO operation accepts an arbitrary Boost.Asio completion token, so C++20
+coroutines work without the library needing to opt in — pass `asio::use_awaitable`
+and `co_await` the result. The library itself remains C++17; only your own
+translation units need C++20.
+
+```cpp
+// Prefer as_tuple: a bare use_awaitable reports failure by throwing, and the
+// exception carries only an error_code. OZO keeps the useful diagnostics on the
+// connection, which a throw discards. This is the coroutine equivalent of
+// yield[ec] rather than a bare yield.
+constexpr auto nothrow_awaitable = asio::as_tuple(asio::use_awaitable);
+
+asio::awaitable<void> select_one(ozo::connection_info<> conn_info, asio::io_context& io) {
+    using namespace ozo::literals;
+    using namespace std::chrono_literals;
+
+    ozo::rows_of<int> result;
+    auto [ec, connection] = co_await ozo::request(
+        conn_info[io], "SELECT 1"_SQL, 1s, ozo::into(result), nothrow_awaitable);
+
+    if (ec) {
+        // The connection survived the failure, so its diagnostics are reachable.
+        std::cerr << ec.message() << ": " << ozo::error_message(connection)
+                  << " " << ozo::get_error_context(connection) << std::endl;
+        co_return;
+    }
+
+    for (auto value : result) {
+        std::cout << std::get<0>(value) << std::endl;
+    }
+}
+```
+
+The connection yielded by `co_await` is itself a `ConnectionProvider`, so it can
+be passed straight to the next operation. Requests, transactions, the connection
+pool and time constraints all work this way; see
+[examples/coroutine.cpp](examples/coroutine.cpp) and
+[the coroutine tests](tests/integration/coroutine_integration.cpp).
+
 ## Provenance
 
 OZO was originally developed at Yandex and released under the PostgreSQL License
