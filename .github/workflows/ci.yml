@@ -32,8 +32,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -67,8 +65,8 @@ jobs:
     container: ubuntu:25.10
 
     steps:
-      # git must exist before checkout so that submodules are fetched
-      # properly rather than falling back to a source archive download.
+      # git must exist before checkout, so that it clones rather than falling
+      # back to downloading a source archive.
       - name: Install dependencies
         run: |
           apt-get update
@@ -79,8 +77,6 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Confirm the Boost version under test
         run: grep 'define BOOST_LIB_VERSION' /usr/include/boost/version.hpp
@@ -106,8 +102,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -153,8 +147,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -188,8 +180,6 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |

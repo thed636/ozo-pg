@@ -8,7 +8,6 @@ find_dependency(PostgreSQL)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_old_})
 
 find_dependency(Boost 1.88 COMPONENTS coroutine context thread atomic)
-find_dependency(resource_pool)
 
 include("${CMAKE_CURRENT_LIST_DIR}/ozo-targets.cmake")
 target_compile_options(ozo::ozo INTERFACE
