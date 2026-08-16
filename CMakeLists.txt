@@ -17,11 +17,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mo
 find_package(Boost 1.88 COMPONENTS coroutine context thread atomic REQUIRED)
 find_package(PostgreSQL REQUIRED)
 
-# Try and find provided resource pool (e.g. from conan), default to vendored version otherwise
-find_package(resource_pool 0.1.0 QUIET)
-if (NOT resource_pool_FOUND)
-    add_subdirectory(contrib)
-endif()
+# resource_pool is vendored in contrib rather than looked up as an external
+# package: see contrib/CMakeLists.txt for why. It is exported as part of the ozo
+# target set, so consumers need nothing beyond find_package(ozo).
+add_subdirectory(contrib)
 
 option(OZO_BUILD_TESTS "Enable tests build" OFF)
 option(OZO_COVERAGE "Enable tests coverage" OFF)

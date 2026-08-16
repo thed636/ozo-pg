@@ -1,21 +1,32 @@
-from conans import ConanFile, CMake
+import os
+
+from conan import ConanFile
+from conan.tools.build import can_run
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 
 
 class OzoTestConan(ConanFile):
-    settings = "os", "compiler", "build_type", "arch"
-    generators = "cmake_find_package"
+    settings = "os", "arch", "compiler", "build_type"
+
+    def requirements(self):
+        self.requires(self.tested_reference_str)
+
+    def layout(self):
+        cmake_layout(self)
+
+    def generate(self):
+        CMakeDeps(self).generate()
+        CMakeToolchain(self).generate()
 
     def build(self):
         cmake = CMake(self)
-        # Current dir is "test_package/build/<build_id>" and CMakeLists.txt is
-        # in "test_package"
         cmake.configure()
         cmake.build()
 
-    def imports(self):
-        self.copy("*.dll", dst="bin", src="bin")
-        self.copy("*.dylib*", dst="bin", src="lib")
-        self.copy('*.so*', dst='bin', src='lib')
-
     def test(self):
-        pass # Building alone is sufficient
+        # The example needs a live database to do anything, so running it is not
+        # part of the test. Building and linking it is what matters here: it
+        # proves find_package(ozo) resolves, that ozo::ozo is usable as a target
+        # and that the packaged headers are complete.
+        if can_run(self):
+            self.run(os.path.join(self.cpp.build.bindir, "example"), env="conanrun")
