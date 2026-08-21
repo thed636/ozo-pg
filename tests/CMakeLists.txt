@@ -148,3 +148,52 @@ if(OZO_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
         DEPENDENCIES ozo_tests
     )
 endif()
+
+# resource_pool's own test suite, vendored alongside its headers.
+#
+# OZO's integration tests exercise the pool only indirectly, through three
+# connection_pool cases. These are its unit tests: the wait queue with
+# per-request timeouts, idle and lifespan expiry, and the handle's recycle and
+# waste semantics. They are the safety net for any change to the pool, which is
+# concurrent code where the failure modes -- timer races against acquisition,
+# cancellation mid-wait, use after recycle -- do not reproduce reliably from an
+# integration test.
+#
+# The synchronous pool's tests are deliberately absent: that pool is not
+# vendored, since nothing in OZO reaches it.
+if(OZO_BUILD_TESTS)
+    # async/pool.cc, async/pool_impl.cc and async/integration.cc are vendored but
+    # not built. They drive the pool through a mock executor written against
+    # Boost.Asio's legacy executor model -- on_work_started, dispatch, post,
+    # defer -- which Boost has removed, so the mock no longer satisfies
+    # any_io_executor and the handlers built on it do not compile. Reviving them
+    # means rewriting the mock against the current executor model, which is only
+    # worth doing as part of replacing the pool; see issue #5. They are kept in
+    # the tree so that work starts from the existing cases rather than a blank
+    # page.
+    set(RESOURCE_POOL_TEST_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/queue.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/error.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/handle.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/time_traits.cc
+        main.cpp
+    )
+
+    add_executable(ozo_resource_pool_tests ${RESOURCE_POOL_TEST_SOURCES})
+    add_dependencies(ozo_resource_pool_tests GoogleTest)
+    target_link_libraries(ozo_resource_pool_tests gtest gmock ozo Boost::coroutine Boost::context)
+    target_include_directories(ozo_resource_pool_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests)
+    add_test(ozo_resource_pool_tests ozo_resource_pool_tests)
+
+    if(CCACHE_FOUND)
+        set_target_properties(ozo_resource_pool_tests PROPERTIES RULE_LAUNCH_COMPILE ccache)
+        set_target_properties(ozo_resource_pool_tests PROPERTIES RULE_LAUNCH_LINK ccache)
+    endif()
+
+    target_compile_options(ozo_resource_pool_tests PRIVATE -Wall -Wextra -pedantic -Werror)
+
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        target_compile_options(ozo_resource_pool_tests PRIVATE -Wno-ignored-optimization-argument)
+    endif()
+endif()
