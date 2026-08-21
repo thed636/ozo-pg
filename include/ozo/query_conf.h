@@ -227,7 +227,7 @@ BOOST_SPIRIT_DEFINE(text_part, parameter_name, text)
 } // namespace text_parser
 
 template <class T>
-constexpr auto HasMembers = hana::Struct<typename hana::tag_of<T>::type>::value;
+concept HasMembers = hana::Struct<typename hana::tag_of<T>::type>::value;
 
 struct parsed_query {
     std::string name;
