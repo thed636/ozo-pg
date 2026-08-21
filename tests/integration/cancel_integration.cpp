@@ -60,7 +60,7 @@ TEST(cancel, should_cancel_operation) {
         ozo::error_code ec;
         auto conn = ozo::get_connection(conn_info[io], yield[ec]);
         EXPECT_FALSE(ec);
-        boost::asio::spawn(yield, [&io, &timer, handle = get_cancel_handle(conn)](auto yield) mutable {
+        boost::asio::spawn(yield.get_executor(), [&io, &timer, handle = get_cancel_handle(conn)](auto yield) mutable {
             timer.expires_after(1s);
             ozo::error_code ec;
             timer.async_wait(yield[ec]);
@@ -106,7 +106,7 @@ TEST(cancel, should_stop_cancel_operation_on_zero_timeout) {
             backend_pid = std::get<0>(pid_row.front());
         }
 
-        boost::asio::spawn(yield, [&io, &timer, handle = get_cancel_handle(conn, dummy_io.get_executor())](auto yield) mutable {
+        boost::asio::spawn(yield.get_executor(), [&io, &timer, handle = get_cancel_handle(conn, dummy_io.get_executor())](auto yield) mutable {
             timer.expires_after(1s);
             ozo::error_code ec;
             timer.async_wait(yield[ec]);
