@@ -221,7 +221,7 @@ struct connection_source_supports_role <
 template <typename Source>
 class role_based_connection_provider {
     Source source_;
-    io_context& io_;
+    asio::any_io_executor ex_;
 public:
 
     static_assert(ozo::ConnectionSource<Source>, "Source should model a ConnectionSource concept");
@@ -256,10 +256,22 @@ public:
      * @param source --- `ConnectionSource` implementation
      * @param io --- `io_context` for asynchronous IO
      */
+    /**
+     * The executor produced connections are bound to.
+     */
+    using executor_type = asio::any_io_executor;
+
+    template <typename T>
+    role_based_connection_provider(T&& source, executor_type ex)
+     : source_(std::forward<T>(source)), ex_(std::move(ex)) {
+    }
+
     template <typename T>
     role_based_connection_provider(T&& source, io_context& io)
-     : source_(std::forward<T>(source)), io_(io) {
+     : role_based_connection_provider(std::forward<T>(source), io.get_executor()) {
     }
+
+    executor_type get_executor() const noexcept { return ex_; }
 
     /**
      * @brief Rebind the `ConnectionProvider` to an other role
@@ -271,7 +283,7 @@ public:
     constexpr decltype(auto) rebind_role(OtherRole r) const & {
         static_assert(is_supported(r), "role is not supported by a connection provider");
         using rebind_type = role_based_connection_provider<decltype(source_.rebind_role(r))>;
-        return rebind_type{ozo::unwrap(source_).rebind_role(r), io_};
+        return rebind_type{ozo::unwrap(source_).rebind_role(r), ex_};
     }
 
     /**
@@ -284,7 +296,7 @@ public:
     constexpr decltype(auto) rebind_role(OtherRole r) & {
         static_assert(is_supported(r), "role is not supported by a connection provider");
         using rebind_type = role_based_connection_provider<decltype(source_.rebind_role(r))>;
-        return rebind_type{ozo::unwrap(source_).rebind_role(r), io_};
+        return rebind_type{ozo::unwrap(source_).rebind_role(r), ex_};
     }
 
     /**
@@ -297,25 +309,25 @@ public:
     constexpr decltype(auto) rebind_role(OtherRole r) && {
         static_assert(is_supported(r), "role is not supported by a connection provider");
         using rebind_type = role_based_connection_provider<decltype(std::move(source_).rebind_role(r))>;
-        return rebind_type{ozo::unwrap(std::forward<Source>(source_)).rebind_role(r), io_};
+        return rebind_type{ozo::unwrap(std::forward<Source>(source_)).rebind_role(r), ex_};
     }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) const & {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        ozo::unwrap(source_)(io_, std::move(t), std::forward<Handler>(h));
+        ozo::unwrap(source_)(ex_, std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) & {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        ozo::unwrap(source_)(io_, std::move(t), std::forward<Handler>(h));
+        ozo::unwrap(source_)(ex_, std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) && {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        ozo::unwrap(std::forward<Source>(source_))(io_, std::move(t), std::forward<Handler>(h));
+        ozo::unwrap(std::forward<Source>(source_))(ex_, std::move(t), std::forward<Handler>(h));
     }
 };
 
@@ -369,18 +381,18 @@ struct role_based_connection_source {
     }
 
     template <typename TimeConstraint, typename Handler>
-    constexpr void operator() (io_context& io, TimeConstraint t, Handler&& h) const & {
-        sources_[role_](io, std::move(t), std::forward<Handler>(h));
+    void operator() (asio::any_io_executor ex, TimeConstraint t, Handler&& h) const & {
+        sources_[role_](std::move(ex), std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
-    constexpr void operator() (io_context& io, TimeConstraint t, Handler&& h) & {
-        sources_[role_](io, std::move(t), std::forward<Handler>(h));
+    void operator() (asio::any_io_executor ex, TimeConstraint t, Handler&& h) & {
+        sources_[role_](std::move(ex), std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
-    constexpr void operator() (io_context& io, TimeConstraint t, Handler&& h) && {
-        std::move(sources_[role_])(io, std::move(t), std::forward<Handler>(h));
+    void operator() (asio::any_io_executor ex, TimeConstraint t, Handler&& h) && {
+        std::move(sources_[role_])(std::move(ex), std::move(t), std::forward<Handler>(h));
     }
 
     constexpr auto operator[] (io_context& io) const & {

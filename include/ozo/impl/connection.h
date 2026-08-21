@@ -37,8 +37,8 @@ inline auto connection_error_message(NativeHandleType handle) {
 } // namespace detail
 
 template <typename OidMap, typename Statistics>
-connection<OidMap, Statistics>::connection(io_context& io, Statistics statistics)
-: io_(std::addressof(io)), socket_(*io_), statistics_(std::move(statistics)) {}
+connection<OidMap, Statistics>::connection(executor_type ex, Statistics statistics)
+: ex_(std::move(ex)), socket_(detail::get_connection_stream(ex_)), statistics_(std::move(statistics)) {}
 
 template <typename OidMap, typename Statistics>
 error_code connection<OidMap, Statistics>::assign(ozo::pg::conn&& handle) {
@@ -47,7 +47,7 @@ error_code connection<OidMap, Statistics>::assign(ozo::pg::conn&& handle) {
         return error::pq_socket_failed;
     }
 
-    stream_type new_socket(*io_, fd);
+    stream_type new_socket(detail::get_connection_stream(ex_, fd));
     socket_.release();
 
     socket_ = std::move(new_socket);

@@ -148,7 +148,7 @@ struct fit_array_size_impl<std::array<T, S>> {
  */
 //! @cond
 template <typename T>
-inline constexpr auto Array = is_array<std::decay_t<T>>::value;
+concept Array = is_array<std::decay_t<T>>::value;
 //! @endcond
 
 namespace definitions {
@@ -223,7 +223,7 @@ using type_traits = decltype(detail::get_type_traits(std::declval<T>()));
  */
 //! @cond
 template <typename T>
-inline constexpr auto HasDefinition = !std::is_void_v<type_traits<T>>;
+concept HasDefinition = !std::is_void_v<type_traits<T>>;
 //! @endcond
 
 template <typename T>
@@ -255,7 +255,7 @@ struct is_composite : std::bool_constant<
  */
 //! @cond
 template <typename T>
-inline constexpr auto Composite = is_composite<std::decay_t<T>>::value;
+concept Composite = is_composite<std::decay_t<T>>::value;
 //! @endcond
 
 /**
@@ -315,7 +315,7 @@ struct is_dynamic_size : std::is_same<typename type_traits<T>::size, dynamic_siz
  * @hideinitializer
  */
 template <typename T>
-inline constexpr auto DynamicSize = is_dynamic_size<std::decay_t<T>>::value;
+concept DynamicSize = is_dynamic_size<std::decay_t<T>>::value;
 
 /**
  * @brief Condition indicates if the specified type is has fixed size
@@ -324,7 +324,7 @@ inline constexpr auto DynamicSize = is_dynamic_size<std::decay_t<T>>::value;
  * @hideinitializer
  */
 template <typename T>
-inline constexpr auto StaticSize = !DynamicSize<T>;
+concept StaticSize = !DynamicSize<T>;
 
 /**
 * @brief Function returns type name in Postgre SQL.
@@ -531,7 +531,7 @@ bool res = empty(map);
  * @sa oid_map_t, register_types(), set_type_oid(), type_oid(), accepts_oid()
  */
 template <typename T>
-inline constexpr auto OidMap = is_oid_map<std::decay_t<T>>::value;
+concept OidMap = is_oid_map<std::decay_t<T>>::value;
 
 /**
  * @brief Provides #OidMap implementation for user-defined types.

@@ -7,11 +7,12 @@ ExternalProject_Add(
     GIT_TAG v1.15.2
     # GoogleTest must be built with the same C++ standard as the tests that
     # consume it: its std::string_view matcher specializations are only
-    # compiled under C++17, and linking a C++14 build against C++17 test
-    # objects fails with undefined Matcher<string_view> symbols.
+    # compiled under C++17 and later, and linking a build at a different
+    # standard against these test objects fails with undefined
+    # Matcher<string_view> symbols.
     CMAKE_ARGS
         -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
-        -DCMAKE_CXX_STANDARD=17
+        -DCMAKE_CXX_STANDARD=20
         -DCMAKE_CXX_STANDARD_REQUIRED=ON
     UPDATE_COMMAND ""
     LOG_DOWNLOAD ON
@@ -78,6 +79,7 @@ if(OZO_BUILD_PG_TESTS)
         integration/cancel_integration.cpp
         integration/role_based_integration.cpp
         integration/connection_pool_integration.cpp
+        integration/executor_integration.cpp
     )
     add_definitions(-DOZO_PG_TEST_CONNINFO="${OZO_PG_TEST_CONNINFO}")
 endif()
@@ -102,17 +104,15 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     target_compile_options(ozo_tests PRIVATE -Wno-ignored-optimization-argument)
 endif()
 
-# C++20 coroutine tests live in their own target rather than in ozo_tests, so
-# that the main suite keeps compiling as C++17 and proves the library still
-# works at its declared minimum standard. They need a database, since the
-# awaitable completion token is only meaningfully exercised against real IO.
-if(OZO_BUILD_PG_TESTS AND cxx_std_20 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
+# Coroutine tests live in their own target purely to keep the completion-token
+# cases together; they need a database, since the awaitable token is only
+# meaningfully exercised against real IO.
+if(OZO_BUILD_PG_TESTS)
     add_executable(ozo_coroutine_tests integration/coroutine_integration.cpp main.cpp)
     add_dependencies(ozo_coroutine_tests GoogleTest)
     target_link_libraries(ozo_coroutine_tests gtest)
     target_link_libraries(ozo_coroutine_tests gmock)
     target_link_libraries(ozo_coroutine_tests ozo)
-    target_compile_features(ozo_coroutine_tests PRIVATE cxx_std_20)
     add_test(ozo_coroutine_tests ozo_coroutine_tests)
 
     if(CCACHE_FOUND)
@@ -133,8 +133,6 @@ if(OZO_BUILD_PG_TESTS AND cxx_std_20 IN_LIST CMAKE_CXX_COMPILE_FEATURES)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         target_compile_options(ozo_coroutine_tests PRIVATE -Wno-maybe-uninitialized)
     endif()
-elseif(OZO_BUILD_PG_TESTS)
-    message(STATUS "Skipping the coroutine tests: compiler does not offer C++20")
 endif()
 
 if(OZO_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
@@ -146,4 +144,53 @@ if(OZO_COVERAGE AND CMAKE_COMPILER_IS_GNUCXX)
         EXECUTABLE ctest -V
         DEPENDENCIES ozo_tests
     )
+endif()
+
+# resource_pool's own test suite, vendored alongside its headers.
+#
+# OZO's integration tests exercise the pool only indirectly, through three
+# connection_pool cases. These are its unit tests: the wait queue with
+# per-request timeouts, idle and lifespan expiry, and the handle's recycle and
+# waste semantics. They are the safety net for any change to the pool, which is
+# concurrent code where the failure modes -- timer races against acquisition,
+# cancellation mid-wait, use after recycle -- do not reproduce reliably from an
+# integration test.
+#
+# The synchronous pool's tests are deliberately absent: that pool is not
+# vendored, since nothing in OZO reaches it.
+if(OZO_BUILD_TESTS)
+    # async/pool.cc, async/pool_impl.cc and async/integration.cc are vendored but
+    # not built. They drive the pool through a mock executor written against
+    # Boost.Asio's legacy executor model -- on_work_started, dispatch, post,
+    # defer -- which Boost has removed, so the mock no longer satisfies
+    # any_io_executor and the handlers built on it do not compile. Reviving them
+    # means rewriting the mock against the current executor model, which is only
+    # worth doing as part of replacing the pool; see issue #5. They are kept in
+    # the tree so that work starts from the existing cases rather than a blank
+    # page.
+    set(RESOURCE_POOL_TEST_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/queue.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/error.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/handle.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/time_traits.cc
+        main.cpp
+    )
+
+    add_executable(ozo_resource_pool_tests ${RESOURCE_POOL_TEST_SOURCES})
+    add_dependencies(ozo_resource_pool_tests GoogleTest)
+    target_link_libraries(ozo_resource_pool_tests gtest gmock ozo Boost::coroutine Boost::context)
+    target_include_directories(ozo_resource_pool_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests)
+    add_test(ozo_resource_pool_tests ozo_resource_pool_tests)
+
+    if(CCACHE_FOUND)
+        set_target_properties(ozo_resource_pool_tests PROPERTIES RULE_LAUNCH_COMPILE ccache)
+        set_target_properties(ozo_resource_pool_tests PROPERTIES RULE_LAUNCH_LINK ccache)
+    endif()
+
+    target_compile_options(ozo_resource_pool_tests PRIVATE -Wall -Wextra -pedantic -Werror)
+
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        target_compile_options(ozo_resource_pool_tests PRIVATE -Wno-ignored-optimization-argument)
+    endif()
 endif()

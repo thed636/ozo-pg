@@ -34,12 +34,14 @@ struct connection_info_sequence {
     connection_info_sequence(const connection_info_sequence&) = delete;
     connection_info_sequence(connection_info_sequence&&) = delete;
 
+    // A ConnectionSource is now handed an executor rather than an execution
+    // context, so that a connection can be bound to a strand.
     template <typename TimeConstraint, typename Handler>
-    void operator ()(ozo::io_context& io, TimeConstraint t, Handler&& handler) {
+    void operator ()(boost::asio::any_io_executor ex, TimeConstraint t, Handler&& handler) {
         if (i_==base_.end()) {
             handler(ozo::error::pq_connection_start_failed, connection_type{});
         } else {
-            (*i_++)(io, t, std::forward<Handler>(handler));
+            (*i_++)(std::move(ex), t, std::forward<Handler>(handler));
         }
     }
 

@@ -1,4 +1,4 @@
-# OZO — header-only C++17 async PostgreSQL client built on Boost.Asio
+# OZO — header-only C++20 async PostgreSQL client built on Boost.Asio
 
 [![CI](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml/badge.svg)](https://github.com/thed636/ozo-pg/actions/workflows/ci.yml)
 
@@ -6,7 +6,7 @@
 
 ## What's this
 
-OZO is a C++17 library for asyncronous communication with PostgreSQL DBMS.
+OZO is a C++20 library for asyncronous communication with PostgreSQL DBMS.
 The library leverages the power of template metaprogramming, providing convenient mapping from C++ types to SQL along with rich query building possibilities. OZO supports different concurrency paradigms (callbacks, futures, coroutines), using Boost.Asio under the hood. Low-level communication with PostgreSQL server is done via libpq. All concepts in the library are designed to be easily extendable (even replaceable) by the user to simplify adaptation to specific project requirements.
 
 ### API
@@ -22,8 +22,7 @@ Since the project is on early state of development it lacks of documentation. We
 
 Every OZO operation accepts an arbitrary Boost.Asio completion token, so C++20
 coroutines work without the library needing to opt in — pass `asio::use_awaitable`
-and `co_await` the result. The library itself remains C++17; only your own
-translation units need C++20.
+and `co_await` the result.
 
 ```cpp
 // Prefer as_tuple: a bare use_awaitable reports failure by throwing, and the
@@ -82,7 +81,7 @@ tested against distribution packages rather than a hand-built Boost.
 and Ubuntu 25.10 (Boost 1.88). On older releases — notably Ubuntu 24.04 LTS, which
 ships 1.83 — Boost has to come from upstream, Homebrew, Conan or vcpkg.
 
-Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++17 on
+Verified against Boost 1.90, libpq 18, PostgreSQL 18, CMake 4.4 and C++20 on
 Apple Clang (arm64). CI covers GCC and Clang on Ubuntu 26.04 and macOS, builds the
 1.88 minimum in an Ubuntu 25.10 container, and runs the integration suite against
 PostgreSQL 14 and 17; see [the workflow](.github/workflows/ci.yml) for the exact set.
@@ -92,8 +91,8 @@ PostgreSQL 14 and 17; see [the workflow](.github/workflows/ci.yml) for the exact
 These things are needed:
 
 * **CMake** is used as build system
-* **GCC** or **Clang** C++ compiler with C++17 support (tested with GCC 7.0, Clang 5.0 and Apple LLVM version 9.0.0)
-* **Boost** >= 1.86 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
+* **GCC** or **Clang** C++ compiler with C++20 support (tested with GCC 15, Clang 20 and Apple Clang 17)
+* **Boost** >= 1.88 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
 * **libpq** >= 9.3
 * [resource_pool](https://github.com/elsid/resource_pool) is vendored in `contrib`, so there is
   nothing to install and no submodule to initialise. It is MIT licensed, copyright Roman Siromakha;

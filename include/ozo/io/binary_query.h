@@ -274,7 +274,7 @@ struct to_binary_query_impl<demo::Query> {
  */
 //! @cond
 template <typename T>
-inline constexpr auto BinaryQueryConvertible = is_binary_query_convertible_v<std::decay_t<T>>;
+concept BinaryQueryConvertible = is_binary_query_convertible_v<std::decay_t<T>>;
 //! @endcond
 
 template <typename T>

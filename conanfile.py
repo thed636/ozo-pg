@@ -12,8 +12,8 @@ class OzoConan(ConanFile):
     license = "PostgreSQL"
     url = "https://github.com/thed636/ozo-pg"
     homepage = "https://github.com/thed636/ozo-pg"
-    description = "Header-only C++17 async PostgreSQL client built on Boost.Asio"
-    topics = ("ozo", "postgres", "postgresql", "cpp17", "database", "db", "asio",
+    description = "Header-only C++20 async PostgreSQL client built on Boost.Asio"
+    topics = ("ozo", "postgres", "postgresql", "cpp20", "database", "db", "asio",
               "async", "header-only")
 
     package_type = "header-library"
@@ -57,7 +57,7 @@ class OzoConan(ConanFile):
     def validate(self):
         if self.settings.os == "Windows":
             raise ConanInvalidConfiguration("OZO is not compatible with Windows")
-        check_min_cppstd(self, 17)
+        check_min_cppstd(self, 20)
 
     def package(self):
         copy(self, "LICENSE", self.source_folder,
