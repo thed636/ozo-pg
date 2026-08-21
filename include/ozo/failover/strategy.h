@@ -115,7 +115,7 @@ constexpr complex_transaction_op<detail::initiate_async_execute> complex_transac
  * @hideinitializer
  */
 template <typename T>
-constexpr auto FailoverStrategy = std::false_type;
+concept FailoverStrategy = std::false_type;
 
 /**
  * @brief FailoverTry concept
@@ -127,7 +127,7 @@ constexpr auto FailoverStrategy = std::false_type;
  * @hideinitializer
  */
 template <typename T>
-constexpr auto FailoverTry = std::false_type;
+concept FailoverTry = std::false_type;
 }
 #endif
 

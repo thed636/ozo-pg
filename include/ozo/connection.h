@@ -355,7 +355,7 @@ struct is_connection<connection<Ts...>> : std::true_type {};
 */
 //! @cond
 template <typename T>
-inline constexpr auto Connection = is_connection<std::decay_t<decltype(unwrap_connection(std::declval<T>()))>>::value;
+concept Connection = is_connection<std::decay_t<decltype(unwrap_connection(std::declval<T>()))>>::value;
 //! @endcond
 
 /**
@@ -624,30 +624,27 @@ struct async_get_connection_impl : std::conditional_t<Connection<Provider>,
 
 namespace detail {
 
-template <typename Source, typename TimeTraits, typename = std::void_t<>>
-struct connection_source_supports_time_traits : std::false_type {};
-
 // A ConnectionSource is invoked with an executor rather than an execution
 // context, which is what allows a connection to be bound to a strand.
 template <typename Source, typename TimeTraits>
-struct connection_source_supports_time_traits<Source, TimeTraits, std::void_t<decltype(
-    std::declval<Source&>()(
-        std::declval<asio::any_io_executor>(),
-        std::declval<TimeTraits>(),
-        std::declval<handler_signature<Source>>()
-    )
-)>> : std::true_type {};
+concept ConnectionSourceInvocable = requires (
+        Source& source,
+        asio::any_io_executor ex,
+        TimeTraits t,
+        handler_signature<Source> handler) {
+    source(std::move(ex), std::move(t), std::move(handler));
+};
 
+// A source has to accept every kind of time constraint the library can hand it.
 template <typename T>
-using connection_source_defined = std::conjunction<
-    typename connection_source_supports_time_traits<T, time_traits::time_point>::type,
-    typename connection_source_supports_time_traits<T, time_traits::duration>::type,
-    typename connection_source_supports_time_traits<T, none_t>::type
->;
+concept connection_source_defined =
+    ConnectionSourceInvocable<T, time_traits::time_point>
+    && ConnectionSourceInvocable<T, time_traits::duration>
+    && ConnectionSourceInvocable<T, none_t>;
 } // namespace detail
 
 template <typename T>
-using is_connection_source = typename detail::connection_source_defined<T>::type;
+using is_connection_source = std::bool_constant<detail::connection_source_defined<T>>;
 
 template <typename T>
 struct connection_source_traits {
@@ -691,7 +688,7 @@ struct connection_source_traits {
  */
 //! @cond
 template <typename T>
-inline constexpr auto ConnectionSource = is_connection_source<std::decay_t<T>>::value;
+concept ConnectionSource = is_connection_source<std::decay_t<T>>::value;
 //! @endcond
 
 template <typename Provider, typename TimeConstraint, typename Handler>
@@ -771,7 +768,7 @@ struct connection_provider_traits {
  */
 //! @cond
 template <typename T>
-inline constexpr auto ConnectionProvider = is_connection_provider<std::decay_t<T>>::value;
+concept ConnectionProvider = is_connection_provider<std::decay_t<T>>::value;
 //! @endcond
 
 #ifdef OZO_DOCUMENTATION

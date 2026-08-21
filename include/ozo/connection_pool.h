@@ -411,7 +411,7 @@ template <typename ...Args>
 struct is_connection_pool<connection_pool<Args...>> : std::true_type {};
 
 template <typename T>
-constexpr auto ConnectionPool = is_connection_pool<std::decay_t<T>>::value;
+concept ConnectionPool = is_connection_pool<std::decay_t<T>>::value;
 
 /**
  * @brief Connection pool construct helper function

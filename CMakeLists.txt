@@ -31,7 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(ozo INTERFACE)
 add_library(ozo::ozo ALIAS ozo)
 
-target_compile_features(ozo INTERFACE cxx_std_17)
+target_compile_features(ozo INTERFACE cxx_std_20)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
     # disable warnings about a compiler-specific option used for gnu-compatible compilers

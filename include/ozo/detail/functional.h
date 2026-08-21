@@ -65,8 +65,11 @@ constexpr auto is_applicable(Ts&&... args) {
      ){};
 }
 
+// A concept's constraint has to be exactly bool, whereas is_applicable() yields
+// an integral_constant, so the value is taken explicitly here. As a constexpr
+// variable this relied on an implicit conversion.
 template <template<typename...> typename Functional, typename ...Ts>
-constexpr auto IsApplicable = decltype(is_applicable<Functional>(std::declval<Ts>()...)){};
+concept IsApplicable = decltype(is_applicable<Functional>(std::declval<Ts>()...))::value;
 
 template <template<typename...> typename Functional, typename ...Ts>
 using result_of = decltype(functional_type<Functional, Ts...>::apply(std::declval<Ts>()...));
