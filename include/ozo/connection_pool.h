@@ -112,7 +112,7 @@ private:
  * @ingroup group-connection-types
  * @models{Connection}
  */
-template <typename Rep, typename Executor = asio::io_context::executor_type>
+template <typename Rep, typename Executor = asio::any_io_executor>
 class pooled_connection {
 public:
     using rep_type = Rep; //!< Connection representation type
@@ -333,15 +333,43 @@ public:
      * @param t --- operation time constraint.
      * @param handler --- #Handler.
      */
+    /**
+     * @brief Get a connection from the pool, bound to the given executor
+     *
+     * @note The vendored `resource_pool` still acquires against an
+     * `io_context&` rather than an executor, so this recovers the execution
+     * context from the executor. That restricts the pool -- but not a plain
+     * `connection_info` -- to executors whose context is an `io_context`, which
+     * covers `io_context::executor_type` and strands over it. Replacing the
+     * pool removes this last restriction; see issue #5.
+     */
     template <typename TimeConstraint, typename Handler>
-    void operator ()(io_context& io, TimeConstraint t, Handler&& handler);
+    void operator ()(asio::any_io_executor ex, TimeConstraint t, Handler&& handler);
+
+    template <typename TimeConstraint, typename Handler>
+    void operator ()(io_context& io, TimeConstraint t, Handler&& handler) {
+        (*this)(asio::any_io_executor(io.get_executor()), std::move(t), std::forward<Handler>(handler));
+    }
 
     auto stats() const {
         return impl_.stats();
     }
 
     auto operator [](io_context& io) {
-        return connection_provider(*this, io);
+        return connection_provider(*this, io.get_executor());
+    }
+
+    /**
+     * @brief Bind the pool to an executor
+     *
+     * Connections taken from the pool are bound to the given executor, so a
+     * pooled connection can be driven from a strand.
+     */
+    template <typename Executor, typename = std::enable_if_t<
+        asio::execution::is_executor<std::decay_t<Executor>>::value
+            || asio::is_executor<std::decay_t<Executor>>::value>>
+    auto operator [](Executor&& ex) {
+        return connection_provider(*this, asio::any_io_executor(std::forward<Executor>(ex)));
     }
 
 private:

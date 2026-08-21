@@ -193,11 +193,34 @@ asio::awaitable<void> honour_deadline(std::reference_wrapper<asio::io_context> i
                                       std::reference_wrapper<bool> completed) {
     const ozo::connection_info conn_info(OZO_PG_TEST_CONNINFO);
 
-    // The statement sleeps far longer than the time constraint allows.
-    auto [ec, conn] = co_await ozo::execute(
-        conn_info[io.get()], "SELECT pg_sleep(10)"_SQL, 1s, nothrow_awaitable);
+    auto [conn_ec, conn] = co_await ozo::get_connection(conn_info[io.get()], 5s, nothrow_awaitable);
+    EXPECT_FALSE(conn_ec) << conn_ec.message();
 
+    // Record which backend is about to run the statement. The client abandons
+    // it once the time constraint expires, but the server keeps executing it:
+    // PostgreSQL only notices a departed client when it next writes to the
+    // socket, and pg_sleep never does. Without terminating it explicitly the
+    // test leaks a backend for the duration of the sleep on every run.
+    ozo::rows_of<std::int32_t> pid_row;
+    auto [pid_ec, with_pid] = co_await ozo::request(
+        std::move(conn), "SELECT pg_backend_pid()"_SQL, 5s, ozo::into(pid_row), nothrow_awaitable);
+    EXPECT_FALSE(pid_ec) << pid_ec.message();
+    EXPECT_THAT(pid_row, SizeIs(1));
+
+    // The statement sleeps far longer than the time constraint allows.
+    auto [ec, timed_out_conn] = co_await ozo::execute(
+        std::move(with_pid), "SELECT pg_sleep(10)"_SQL, 1s, nothrow_awaitable);
     EXPECT_EQ(ec, boost::asio::error::timed_out) << ec.message();
+
+    if (!pid_row.empty()) {
+        ozo::rows_of<bool> terminated;
+        auto [kill_ec, kill_conn] = co_await ozo::request(conn_info[io.get()],
+            "SELECT pg_terminate_backend("_SQL + std::get<0>(pid_row.front()) + ")"_SQL,
+            5s, ozo::into(terminated), nothrow_awaitable);
+        EXPECT_FALSE(kill_ec) << kill_ec.message();
+        EXPECT_THAT(terminated, ElementsAre(std::make_tuple(true)));
+    }
+
     completed.get() = true;
 }
 

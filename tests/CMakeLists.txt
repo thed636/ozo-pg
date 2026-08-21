@@ -78,6 +78,7 @@ if(OZO_BUILD_PG_TESTS)
         integration/cancel_integration.cpp
         integration/role_based_integration.cpp
         integration/connection_pool_integration.cpp
+        integration/executor_integration.cpp
     )
     add_definitions(-DOZO_PG_TEST_CONNINFO="${OZO_PG_TEST_CONNINFO}")
 endif()

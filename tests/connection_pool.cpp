@@ -99,8 +99,8 @@ struct connection_source {
     using connection_type = std::shared_ptr<connection<>>;
     using source_type = connection_source;
 
-    template <typename IoContext, typename TimeConstraint, typename Handler>
-    void operator()(IoContext&, TimeConstraint&&, Handler&& h) const {
+    template <typename Executor, typename TimeConstraint, typename Handler>
+    void operator()(Executor&&, TimeConstraint&&, Handler&& h) const {
         mock_->async_get_connection(ozo::detail::make_copyable(std::forward<Handler>(h)));
     }
 };

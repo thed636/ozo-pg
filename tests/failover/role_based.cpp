@@ -57,8 +57,8 @@ struct role_based_connection_source {
         return role_based_connection_source<OtherRole>{this->mock_};
     }
 
-    template <typename IoContext, typename TimeConstraint, typename Handler>
-    void operator() (IoContext&, TimeConstraint, Handler&& h) const {
+    template <typename Executor, typename TimeConstraint, typename Handler>
+    void operator() (Executor&&, TimeConstraint, Handler&& h) const {
         mock_->call(std::forward<Handler>(h));
     }
 
@@ -68,8 +68,8 @@ struct role_based_connection_source {
 struct unsupported_role_connection_source {
     using connection_type = connection_mock*;
 
-    template <typename IoContext, typename TimeConstraint, typename Handler>
-    void operator() (IoContext&, TimeConstraint, Handler&&) const {
+    template <typename Executor, typename TimeConstraint, typename Handler>
+    void operator() (Executor&&, TimeConstraint, Handler&&) const {
     }
 };
 

@@ -3,8 +3,13 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/strand.hpp>
+#include <boost/asio/basic_waitable_timer.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/is_executor.hpp>
+#include <boost/asio/execution/executor.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/asio/query.hpp>
+#include <boost/asio/execution/context.hpp>
 
 namespace ozo {
 
@@ -33,22 +38,33 @@ auto make_strand_executor(const Executor& ex) {
     return strand_executor<Executor>::get(ex);
 }
 
-template <typename ExecutionContext>
+/**
+ * @brief Timer type and factory for an executor
+ *
+ * Works for any Boost.Asio executor. The timer keeps the executor's own type
+ * rather than erasing it to `asio::any_io_executor`, so a timer created for a
+ * strand stays on that strand and costs no type erasure.
+ *
+ * This remains a customization point: specialize it to supply a different timer
+ * for a particular executor, as the tests do to drive time from a mock.
+ */
+template <typename Executor>
 struct operation_timer {
-    static_assert(std::is_same_v<ExecutionContext, operation_timer>,
-        "No operation_timer<> specialization found for specified type");
-};
+    static_assert(asio::execution::is_executor<Executor>::value
+                    || asio::is_executor<Executor>::value,
+        "operation_timer<> requires a Boost.Asio executor; specialize it for other types");
 
-template <>
-struct operation_timer<asio::io_context::executor_type> {
-    using type = asio::steady_timer;
+    using type = asio::basic_waitable_timer<
+        std::chrono::steady_clock,
+        asio::wait_traits<std::chrono::steady_clock>,
+        Executor>;
 
     template <typename TimeConstraint>
-    static type get(const asio::io_context::executor_type& ex, TimeConstraint t) {
+    static type get(const Executor& ex, TimeConstraint t) {
         return type{ex, t};
     }
 
-    static type get(const asio::io_context::executor_type& ex) {
+    static type get(const Executor& ex) {
         return type{ex};
     }
 };
@@ -64,22 +80,31 @@ inline auto get_operation_timer(const Executor& ex) {
 }
 
 
-template <typename ExecutionContext>
+/**
+ * @brief Descriptor type and factory for an executor
+ *
+ * Works for any Boost.Asio executor, and like `operation_timer` keeps the
+ * executor's own type. Note that the descriptor is built from the executor
+ * directly rather than from `ex.context()`: reaching for the execution context
+ * is what previously restricted this to `io_context::executor_type`, since no
+ * other executor is required to expose one.
+ *
+ * This remains a customization point, as the tests rely on.
+ */
+template <typename Executor>
 struct connection_stream {
-    static_assert(std::is_same_v<ExecutionContext, connection_stream>,
-        "No connection_stream<> specialization found for specified type");
-};
+    static_assert(asio::execution::is_executor<Executor>::value
+                    || asio::is_executor<Executor>::value,
+        "connection_stream<> requires a Boost.Asio executor; specialize it for other types");
 
-template <>
-struct connection_stream<asio::io_context::executor_type> {
-    using type = asio::posix::stream_descriptor;
+    using type = asio::posix::basic_stream_descriptor<Executor>;
 
-    static type get(const asio::io_context::executor_type& ex, type::native_handle_type fd) {
-        return type{ex.context(), fd};
+    static type get(const Executor& ex, typename type::native_handle_type fd) {
+        return type{ex, fd};
     }
 
-    static type get(const asio::io_context::executor_type& ex) {
-        return type{ex.context()};
+    static type get(const Executor& ex) {
+        return type{ex};
     }
 };
 

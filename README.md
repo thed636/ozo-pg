@@ -93,7 +93,7 @@ These things are needed:
 
 * **CMake** is used as build system
 * **GCC** or **Clang** C++ compiler with C++17 support (tested with GCC 7.0, Clang 5.0 and Apple LLVM version 9.0.0)
-* **Boost** >= 1.86 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
+* **Boost** >= 1.88 with `BOOST_HANA_CONFIG_ENABLE_STRING_UDL` defined.
 * **libpq** >= 9.3
 * [resource_pool](https://github.com/elsid/resource_pool) is vendored in `contrib`, so there is
   nothing to install and no submodule to initialise. It is MIT licensed, copyright Roman Siromakha;

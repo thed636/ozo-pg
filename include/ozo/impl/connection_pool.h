@@ -70,7 +70,7 @@ struct pooled_connection_wrapper {
             return handler_(std::move(ec), std::move(conn));
         }
 
-        source_(io_executor_.context(), time_constrain_, wrapper{std::move(handler_), std::move(handle)});
+        source_(io_executor_, time_constrain_, wrapper{std::move(handler_), std::move(handle)});
     }
 
     using executor_type = decltype(asio::get_associated_executor(handler_));
@@ -109,12 +109,17 @@ struct unwrap_impl<yamail::resource_pool::handle<V>> {
 
 template <typename Source, typename ThreadSafety>
 template <typename TimeConstraint, typename Handler>
-void connection_pool<Source, ThreadSafety>::operator ()(io_context& io, TimeConstraint t, Handler&& handler) {
+void connection_pool<Source, ThreadSafety>::operator ()(asio::any_io_executor ex, TimeConstraint t, Handler&& handler) {
     static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
+    // Transitional: resource_pool acquires against an execution context, so the
+    // context is recovered from the executor here. The connection itself is
+    // still bound to the executor that was passed in, so a strand is honoured
+    // for everything except the acquisition. See issue #5.
+    auto& context = static_cast<io_context&>(asio::query(ex, asio::execution::context));
     impl_.get_auto_recycle(
-        io,
+        context,
         detail::wrap_pooled_connection_handler(
-            io.get_executor(),
+            ex,
             source_,
             t,
             std::forward<Handler>(handler)
@@ -125,7 +130,7 @@ void connection_pool<Source, ThreadSafety>::operator ()(io_context& io, TimeCons
 
 template <typename Rep, typename Executor>
 pooled_connection<Rep, Executor>::pooled_connection(const Executor& ex, Rep&& rep)
-: rep_(std::move(rep)), ex_(ex), stream_(get_executor().context()) {
+: rep_(std::move(rep)), ex_(ex), stream_(detail::get_connection_stream(ex_)) {
     if (auto fd = PQsocket(native_handle()); fd != -1) {
         stream_.assign(fd);
     }
