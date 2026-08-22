@@ -95,15 +95,34 @@ public:
     using native_handle_type = ozo::pg::conn::pointer; //!< Native connection handle type
     using oid_map_type = OidMap; //!< Oid map of types that are used with the connection
     using error_context_type = std::string; //!< Additional error context which could provide context depended information for errors
-    using executor_type = io_context::executor_type; //!< The type of the executor associated with the object.
+    /**
+     * The type of the executor associated with the object.
+     *
+     * Type-erased rather than fixed to `io_context::executor_type`, so that a
+     * connection can be bound to a strand or to any other executor while
+     * `connection_type` stays a single type for a given #ConnectionSource. The
+     * indirection this costs is negligible against the network IO it guards.
+     */
+    using executor_type = asio::any_io_executor;
 
     /**
      * Construct a new connection object.
      *
+     * @param ex --- executor for IO operations associated with the object.
+     * @param statistics --- initial statistics (not supported yet)
+     */
+    connection(executor_type ex, Statistics statistics);
+
+    /**
+     * Construct a new connection object bound to an execution context.
+     *
+     * Equivalent to constructing from `io.get_executor()`.
+     *
      * @param io --- execution context for IO operations associated with the object.
      * @param statistics --- initial statistics (not supported yet)
      */
-    connection(io_context& io, Statistics statistics);
+    connection(io_context& io, Statistics statistics)
+    : connection(io.get_executor(), std::move(statistics)) {}
 
     /**
      * Get native connection handle object.
@@ -157,7 +176,7 @@ public:
      *
      * @return executor_type --- executor object.
      */
-    executor_type get_executor() const noexcept { return io_->get_executor(); }
+    executor_type get_executor() const noexcept { return ex_; }
 
     /**
      * Assign an existing native connection handle to the object.
@@ -262,10 +281,10 @@ public:
 
     ~connection();
 private:
-    using stream_type = asio::posix::stream_descriptor;
+    using stream_type = typename detail::connection_stream<executor_type>::type;
 
     ozo::pg::conn handle_;
-    io_context* io_ = nullptr;
+    executor_type ex_;
     stream_type socket_;
     oid_map_type oid_map_;
     Statistics statistics_;
@@ -293,7 +312,7 @@ struct is_connection<connection<Ts...>> : std::true_type {};
 * by the library to execute operations on a database. `%Connection` should provide:
 * * the native PostgreSQL connection handle from `libpq`,
 * * an executor to perform IO-related operation (according to the current version of Boost.Asio
-*   it should be `boost::asio::io_context::executor_type` object),
+*   it may be any Boost.Asio executor, including a strand),
 * * an additional error context to provide context-depended information for errors,
 * * IO functions that are necessary to perform operations.
 *
@@ -314,7 +333,7 @@ struct is_connection<connection<Ts...>> : std::true_type {};
 * | <PRE>as_const(c).oid_map()</PRE> | `C::oid_map_type` | Should return a const reference on `OidMap` which is used by the library for custom types introspection for the connection IO. Shall not throw an exception. |
 * | <PRE>as_const(c).%get_error_context()</PRE> | `C::error_context_type` | Should return a const reference on an additional error context is related to at least the last error. In the current implementation, the type supported is `std::string`. Shall not throw an exception. |
 * | <PRE>c.set_error_context(error_context_type)<sup>[1]</sup><br/>%c.set_error_context()<sup>[2]</sup></PRE> | | Should set<sup>[1]</sup> or reset<sup>[2]</sup> additional error context. |
-* | <PRE>as_const(c).%get_executor()</PRE> | `C::executor_type` | Should provide an executor object that is useful for IO-related operations, like timer and so on. In the current implementation `boost::asio::io_context::executor_type` is only applicable. Shall not throw an exception. |
+* | <PRE>as_const(c).%get_executor()</PRE> | `C::executor_type` | Should provide an executor object that is useful for IO-related operations, like timer and so on. Any Boost.Asio executor is applicable, including a strand. Shall not throw an exception. |
 * | <PRE>c.async_wait_write(WaitHandler)</PRE> | | Should asynchronously wait for write ready state of the connection socket. |
 * | <PRE>c.async_wait_read(WaitHandler)</PRE> | | Should asynchronously wait for read ready state of the connection socket. |
 * | <PRE>c.close()</PRE> | `error_code` | Should close connection socket and cancel all IO operation on the connection (like `async_wait_write`, `async_wait_read`). Shall not throw an exception. |
@@ -608,10 +627,12 @@ namespace detail {
 template <typename Source, typename TimeTraits, typename = std::void_t<>>
 struct connection_source_supports_time_traits : std::false_type {};
 
+// A ConnectionSource is invoked with an executor rather than an execution
+// context, which is what allows a connection to be bound to a strand.
 template <typename Source, typename TimeTraits>
 struct connection_source_supports_time_traits<Source, TimeTraits, std::void_t<decltype(
     std::declval<Source&>()(
-        std::declval<io_context&>(),
+        std::declval<asio::any_io_executor>(),
         std::declval<TimeTraits>(),
         std::declval<handler_signature<Source>>()
     )

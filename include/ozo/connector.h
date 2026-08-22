@@ -83,35 +83,53 @@ public:
      * @param source --- `ConnectionSource` implementation
      * @param io --- `io_context` for asynchronous IO
      */
-    connection_provider(ConnectionSource&& source, io_context& io)
-     : source_(std::forward<ConnectionSource>(source)), io_(io) {
+    /**
+     * The executor the produced connections are bound to.
+     *
+     * Type-erased so that a provider binding to a strand has the same type as
+     * one binding to an `io_context`, which keeps `connection_type` stable.
+     */
+    using executor_type = asio::any_io_executor;
+
+    connection_provider(ConnectionSource&& source, executor_type ex)
+     : source_(std::forward<ConnectionSource>(source)), ex_(std::move(ex)) {
     }
+
+    connection_provider(ConnectionSource&& source, io_context& io)
+     : connection_provider(std::forward<ConnectionSource>(source), io.get_executor()) {
+    }
+
+    executor_type get_executor() const noexcept { return ex_; }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) const& {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        source_(io_, std::move(t), std::forward<Handler>(h));
+        source_(ex_, std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) & {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        source_(io_, std::move(t), std::forward<Handler>(h));
+        source_(ex_, std::move(t), std::forward<Handler>(h));
     }
 
     template <typename TimeConstraint, typename Handler>
     void async_get_connection(TimeConstraint t, Handler&& h) && {
         static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-        std::move(source_)(io_, std::move(t), std::forward<Handler>(h));
+        std::move(source_)(ex_, std::move(t), std::forward<Handler>(h));
     }
 
 private:
     ConnectionSource source_;
-    io_context& io_;
+    executor_type ex_;
 };
 
 template <typename ConnectionSource>
 connection_provider(ConnectionSource&& source, io_context& io)
+    -> connection_provider<ConnectionSource>;
+
+template <typename ConnectionSource>
+connection_provider(ConnectionSource&& source, asio::any_io_executor ex)
     -> connection_provider<ConnectionSource>;
 
 } // namespace ozo
