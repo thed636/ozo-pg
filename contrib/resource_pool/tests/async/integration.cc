@@ -1,8 +1,11 @@
 #include <yamail/resource_pool/async/pool.hpp>
 
+#include <boost/asio/detached.hpp>
 #include <boost/asio/dispatch.hpp>
+#include <boost/asio/spawn.hpp>
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 namespace {
 
@@ -50,7 +53,7 @@ TEST_F(async_resource_pool_integration, first_get_auto_recycle_should_return_usa
         EXPECT_TRUE(handle.empty());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -75,7 +78,7 @@ TEST_F(async_resource_pool_integration, after_get_auto_recycle_pool_should_save_
         }
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -92,7 +95,7 @@ TEST_F(async_resource_pool_integration, parallel_requests_should_get_different_h
         handle.reset(resource {42});
 
         ASSERT_FALSE(coroutine1_finished.test_and_set());
-    });
+    }, asio::detached);
 
     asio::spawn(io, [&] (asio::yield_context yield) {
         auto handle = pool.get_auto_recycle(io, yield);
@@ -101,7 +104,7 @@ TEST_F(async_resource_pool_integration, parallel_requests_should_get_different_h
         handle.reset(resource {13});
 
         ASSERT_FALSE(coroutine2_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -122,7 +125,7 @@ TEST_F(async_resource_pool_integration, sequenced_requests_should_get_different_
         EXPECT_TRUE(handle2.empty());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -144,7 +147,7 @@ TEST_F(async_resource_pool_integration, request_with_zero_wait_duration_should_n
         EXPECT_TRUE(handle2.empty());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -172,7 +175,7 @@ TEST_F(async_resource_pool_integration, queue_should_store_pending_requests) {
         pool.get_auto_recycle(io, on_get, time_traits::duration::max());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -195,7 +198,7 @@ TEST_F(async_resource_pool_integration, for_zero_queue_capacity_should_not_be_pe
         EXPECT_TRUE(handle2.empty());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -250,7 +253,7 @@ TEST_F(async_resource_pool_integration, first_get_auto_waste_should_return_usabl
         EXPECT_TRUE(handle.empty());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -274,7 +277,7 @@ TEST_F(async_resource_pool_integration, after_get_auto_waste_pool_should_reset_h
         }
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -300,7 +303,7 @@ TEST_F(async_resource_pool_integration, disabled_pool_should_cancel_all_pending_
         pool.reset();
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -425,7 +428,7 @@ TEST_F(async_resource_pool_integration, enqueue_pending_request_on_timeout_shoul
         }
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
@@ -454,7 +457,7 @@ TEST_F(async_resource_pool_integration, pending_request_should_get_empty_handle_
         pool.get_auto_recycle(io, on_get, time_traits::duration::max());
 
         ASSERT_FALSE(coroutine_finished.test_and_set());
-    });
+    }, asio::detached);
 
     io.run();
 
