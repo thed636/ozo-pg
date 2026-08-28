@@ -99,10 +99,16 @@ public:
 
     list_iterator_handler() = default;
 
-    template <class Handler>
-    list_iterator_handler(Handler&& handler,
+    // A fallback executor is required, not optional. A handler that carries no
+    // executor of its own is associated with asio::basic_inline_executor, which
+    // is not convertible to any_io_executor, so deducing the association
+    // without a fallback fails to compile for any plain callable -- a lambda,
+    // for instance. The caller supplies the execution context's executor, which
+    // is where such a handler should run anyway.
+    template <class Handler, class DefaultExecutor>
+    list_iterator_handler(Handler&& handler, const DefaultExecutor& default_executor,
             std::enable_if_t<!std::is_same_v<std::decay_t<Handler>, list_iterator_handler>, void*> = nullptr)
-            : executor(asio::get_associated_executor(handler)),
+            : executor(asio::get_associated_executor(handler, default_executor)),
               impl(std::make_unique<list_iterator_handler_impl<T, std::decay_t<Handler>>>(std::forward<Handler>(handler))) {
     }
 
@@ -361,7 +367,7 @@ void pool_impl<V, M, I, Q>::get(io_context_t& io_context, Handler&& handler, tim
             ));
         return;
     }
-    list_iterator_handler<value_type> wrapped(std::forward<Handler>(handler));
+    list_iterator_handler<value_type> wrapped(std::forward<Handler>(handler), io_context.get_executor());
     const bool pushed = _callbacks->push(io_context, wait_duration, std::move(wrapped));
     if (pushed) {
         return;

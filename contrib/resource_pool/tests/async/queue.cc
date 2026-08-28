@@ -125,7 +125,7 @@ TEST_F(async_request_queue, push_then_timeout_request_queue_should_be_empty) {
 
     EXPECT_CALL(*queue->timer(io1).impl, expires_at(_)).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io1).impl, async_wait(_)).WillOnce(SaveArg<0>(&on_async_wait));
-    EXPECT_CALL(executor1, post(_)).WillOnce(InvokeArgument<0>());
+    EXPECT_CALL(executor1, execute(_)).WillOnce(InvokeArgument<0>());
     EXPECT_CALL(*expired, call(_)).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io1).impl, cancel()).WillOnce(Return());
 
@@ -267,11 +267,11 @@ TEST_F(async_request_queue, push_twice_with_different_io_serivices_and_timeout_b
     EXPECT_CALL(*queue->timer(io1).impl, async_wait(_)).InSequence(s).WillOnce(SaveArg<0>(&on_async_wait1));
     EXPECT_CALL(*queue->timer(io1).impl, expires_at(_)).InSequence(s).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io1).impl, async_wait(_)).InSequence(s).WillOnce(SaveArg<0>(&on_async_wait1));
-    EXPECT_CALL(executor1, post(_)).InSequence(s).WillOnce(InvokeArgument<0>());
+    EXPECT_CALL(executor1, execute(_)).InSequence(s).WillOnce(InvokeArgument<0>());
     EXPECT_CALL(*expired1, call(_)).InSequence(s).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io2).impl, expires_at(_)).InSequence(s).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io2).impl, async_wait(_)).InSequence(s).WillOnce(SaveArg<0>(&on_async_wait2));
-    EXPECT_CALL(executor2, post(_)).InSequence(s).WillOnce(InvokeArgument<0>());
+    EXPECT_CALL(executor2, execute(_)).InSequence(s).WillOnce(InvokeArgument<0>());
     EXPECT_CALL(*expired2, call(_)).InSequence(s).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io1).impl, cancel()).WillOnce(Return());
     EXPECT_CALL(*queue->timer(io2).impl, cancel()).WillOnce(Return());

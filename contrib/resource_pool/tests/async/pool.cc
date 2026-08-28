@@ -260,10 +260,12 @@ TEST_F(async_resource_pool, asio_use_executor) {
 
     const InSequence s;
 
-    EXPECT_CALL(executor, on_work_started()).WillOnce(Return());
-    EXPECT_CALL(executor, dispatch(_)).WillOnce(InvokeArgument<0>());
+    // on_work_started and on_work_finished are gone: Boost.Asio tracks
+    // outstanding work through the outstanding_work property rather than by
+    // calling back into the executor, so what remains to assert is that the
+    // handler's own executor is the one the completion runs on.
+    EXPECT_CALL(executor, execute(_)).WillOnce(InvokeArgument<0>());
     EXPECT_CALL(*call, call()).WillOnce(Return());
-    EXPECT_CALL(executor, on_work_finished()).WillOnce(Return());
 
     pool.get_auto_waste(service, on_get_callback {call, executor_wrapper});
     service.run();

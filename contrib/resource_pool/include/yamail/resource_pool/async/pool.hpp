@@ -6,6 +6,7 @@
 #include <yamail/resource_pool/async/detail/pool_impl.hpp>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/async_result.hpp>
 
 namespace yamail {
 namespace resource_pool {
@@ -100,20 +101,29 @@ public:
 
     const pool_impl& impl() const noexcept { return *_impl; }
 
+    // async_initiate rather than async_completion: the latter reaches for
+    // async_result<>::completion_handler_type, which modern completion tokens
+    // such as asio::yield_context and asio::use_awaitable no longer provide, so
+    // the pool could only be driven with a plain callable. Initiating this way
+    // supports any completion token.
     template <class CompletionToken>
     auto get_auto_waste(io_context_t& io_context, CompletionToken&& token,
                         time_traits::duration wait_duration = time_traits::duration(0)) {
-        async_completion<CompletionToken> init(token);
-        get(io_context, std::move(init.completion_handler), &handle::waste, wait_duration);
-        return init.result.get();
+        return asio::async_initiate<CompletionToken, signature>(
+            [this](auto&& handler, io_context_t* io, time_traits::duration wait) {
+                this->get(*io, std::forward<decltype(handler)>(handler), &handle::waste, wait);
+            },
+            token, std::addressof(io_context), wait_duration);
     }
 
     template <class CompletionToken>
     auto get_auto_recycle(io_context_t& io_context, CompletionToken&& token,
                           time_traits::duration wait_duration = time_traits::duration(0)) {
-        async_completion<CompletionToken> init(token);
-        get(io_context, std::move(init.completion_handler), &handle::recycle, wait_duration);
-        return init.result.get();
+        return asio::async_initiate<CompletionToken, signature>(
+            [this](auto&& handler, io_context_t* io, time_traits::duration wait) {
+                this->get(*io, std::forward<decltype(handler)>(handler), &handle::recycle, wait);
+            },
+            token, std::addressof(io_context), wait_duration);
     }
 
     void invalidate() {
@@ -123,8 +133,7 @@ public:
 private:
     using list_iterator = typename pool_impl::list_iterator;
 
-    template <typename CompletionToken>
-    using async_completion = detail::async_completion<CompletionToken, void (boost::system::error_code, handle)>;
+    using signature = void (boost::system::error_code, handle);
 
     template <class UseStrategy, class Handler>
     class on_get_handler {
@@ -133,13 +142,20 @@ private:
         Handler handler;
 
     public:
-        using executor_type = std::decay_t<decltype(asio::get_associated_executor(handler))>;
+        // Resolved once, against a fallback, rather than deduced from the
+        // handler on every call. A handler with no executor of its own is
+        // associated with asio::basic_inline_executor, which is not convertible
+        // to any_io_executor, so propagating that association unchanged makes
+        // the pool unusable with a plain callable.
+        using executor_type = asio::any_io_executor;
 
-        template <class HandlerT>
-        on_get_handler(std::shared_ptr<pool_impl> impl, UseStrategy use_strategy, HandlerT&& handler)
+        template <class HandlerT, class DefaultExecutor>
+        on_get_handler(std::shared_ptr<pool_impl> impl, UseStrategy use_strategy, HandlerT&& handler,
+                       const DefaultExecutor& default_executor)
             : impl(std::move(impl)),
               use_strategy(std::move(use_strategy)),
-              handler(std::forward<HandlerT>(handler)) {
+              handler(std::forward<HandlerT>(handler)),
+              executor_(asio::get_associated_executor(this->handler, default_executor)) {
             static_assert(std::is_same<std::decay_t<HandlerT>, Handler>::value, "HandlerT is not Handler");
         }
 
@@ -151,15 +167,20 @@ private:
             }
         }
 
-        auto get_executor() const noexcept {
-            return asio::get_associated_executor(handler);
+        executor_type get_executor() const noexcept {
+            return executor_;
         }
+
+    private:
+        executor_type executor_;
     };
 
-    template <class UseStrategy, class Handler>
-    auto make_on_get_handler(UseStrategy&& use_strategy, Handler&& handler) {
+    template <class UseStrategy, class Handler, class DefaultExecutor>
+    auto make_on_get_handler(UseStrategy&& use_strategy, Handler&& handler,
+                             const DefaultExecutor& default_executor) {
         using result_type = on_get_handler<std::decay_t<UseStrategy>, std::decay_t<Handler>>;
-        return result_type(_impl, std::forward<UseStrategy>(use_strategy), std::forward<Handler>(handler));
+        return result_type(_impl, std::forward<UseStrategy>(use_strategy),
+                           std::forward<Handler>(handler), default_executor);
     }
 
     std::shared_ptr<pool_impl> _impl;
@@ -168,7 +189,8 @@ private:
     void get(io_context_t &io_context, Handler&& handler, UseStrategy&& use_strategy, time_traits::duration wait_duration) {
         _impl->get(
             io_context,
-            make_on_get_handler(std::forward<UseStrategy>(use_strategy), std::forward<Handler>(handler)),
+            make_on_get_handler(std::forward<UseStrategy>(use_strategy), std::forward<Handler>(handler),
+                                io_context.get_executor()),
             wait_duration
         );
     }

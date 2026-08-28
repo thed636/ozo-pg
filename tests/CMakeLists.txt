@@ -159,16 +159,10 @@ endif()
 # The synchronous pool's tests are deliberately absent: that pool is not
 # vendored, since nothing in OZO reaches it.
 if(OZO_BUILD_TESTS)
-    # async/pool.cc, async/pool_impl.cc and async/integration.cc are vendored but
-    # not built. They drive the pool through a mock executor written against
-    # Boost.Asio's legacy executor model -- on_work_started, dispatch, post,
-    # defer -- which Boost has removed, so the mock no longer satisfies
-    # any_io_executor and the handlers built on it do not compile. Reviving them
-    # means rewriting the mock against the current executor model, which is only
-    # worth doing as part of replacing the pool; see issue #5. They are kept in
-    # the tree so that work starts from the existing cases rather than a blank
-    # page.
     set(RESOURCE_POOL_TEST_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/integration.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/pool.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/pool_impl.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/async/queue.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/error.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/../contrib/resource_pool/tests/handle.cc
