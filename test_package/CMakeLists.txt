@@ -4,5 +4,5 @@ project(PackageTest CXX)
 find_package(ozo REQUIRED CONFIG)
 
 add_executable(example test_package.cpp)
-target_compile_features(example PRIVATE cxx_std_17)
+target_compile_features(example PRIVATE cxx_std_20)
 target_link_libraries(example PRIVATE ozo::ozo)

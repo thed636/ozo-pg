@@ -49,6 +49,6 @@ template <typename T>
 using is_none = decltype(std::declval<const T&>() == none);
 
 template <typename T>
-inline constexpr auto IsNone = is_none<std::decay_t<T>>::value;
+concept IsNone = is_none<std::decay_t<T>>::value;
 
 } // namespace ozo

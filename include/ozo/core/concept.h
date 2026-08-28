@@ -57,11 +57,10 @@ using Require = std::enable_if_t<Condition, Type>;
 #endif
 
 
-template <typename T, typename = std::void_t<>>
-struct has_operator_not : std::false_type {};
+// Retained for backward compatibility: the concept below is the definition, and
+// this alias exists only for code that referred to the trait directly.
 template <typename T>
-struct has_operator_not<T, std::void_t<decltype(!std::declval<T>())>>
-    : std::true_type {};
+using has_operator_not = std::bool_constant<requires (T t) { !t; }>;
 
 /**
  * @brief Negation operator support concept
@@ -72,7 +71,7 @@ struct has_operator_not<T, std::void_t<decltype(!std::declval<T>())>>
  */
 //! @cond
 template <typename T>
-inline constexpr auto OperatorNot = has_operator_not<std::decay_t<T>>::value;
+concept OperatorNot = requires (std::decay_t<T> t) { !t; };
 //! @endcond
 
 template <typename T, typename Enable = void>
@@ -96,7 +95,7 @@ struct is_output_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-inline constexpr auto OutputIterator = is_output_iterator<T>::value;
+concept OutputIterator = is_output_iterator<T>::value;
 //! @endcond
 
 template <typename T, typename Enable = void>
@@ -120,7 +119,7 @@ struct is_forward_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-inline constexpr auto ForwardIterator = is_forward_iterator<T>::value;
+concept ForwardIterator = is_forward_iterator<T>::value;
 //! @endcond
 
 template <typename T, typename Enable = void>
@@ -147,7 +146,7 @@ struct is_iterable<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-inline constexpr auto Iterable = is_iterable<T>::value;
+concept Iterable = is_iterable<T>::value;
 //! @endcond
 
 template <typename T, typename Enable = void>
@@ -170,7 +169,7 @@ struct is_insert_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-inline constexpr auto InsertIterator = is_insert_iterator<T>::value;
+concept InsertIterator = is_insert_iterator<T>::value;
 //! @endcode
 
 /**
@@ -181,7 +180,7 @@ inline constexpr auto InsertIterator = is_insert_iterator<T>::value;
  */
 //! @cond
 template <typename T>
-inline constexpr auto FusionSequence = boost::fusion::traits::is_sequence<std::decay_t<T>>::value;
+concept FusionSequence = boost::fusion::traits::is_sequence<std::decay_t<T>>::value;
 //! @endcode
 
 /**
@@ -192,7 +191,7 @@ inline constexpr auto FusionSequence = boost::fusion::traits::is_sequence<std::d
  */
 //! @cond
 template <typename T>
-inline constexpr auto HanaSequence = boost::hana::Sequence<std::decay_t<T>>::value;
+concept HanaSequence = boost::hana::Sequence<std::decay_t<T>>::value;
 //! @endcode
 
 /**
@@ -203,7 +202,7 @@ inline constexpr auto HanaSequence = boost::hana::Sequence<std::decay_t<T>>::val
  */
 //! @cond
 template <typename T>
-inline constexpr auto HanaStruct = boost::hana::Struct<std::decay_t<T>>::value;
+concept HanaStruct = boost::hana::Struct<std::decay_t<T>>::value;
 //! @endcode
 
 /**
@@ -214,7 +213,7 @@ inline constexpr auto HanaStruct = boost::hana::Struct<std::decay_t<T>>::value;
  */
 //! @cond
 template <typename T>
-inline constexpr auto HanaString = decltype(boost::hana::is_a<boost::hana::string_tag>(std::declval<T>()))::value;
+concept HanaString = decltype(boost::hana::is_a<boost::hana::string_tag>(std::declval<T>()))::value;
 //! @endcode
 
 /**
@@ -225,7 +224,7 @@ inline constexpr auto HanaString = decltype(boost::hana::is_a<boost::hana::strin
  */
 //! @cond
 template <typename T>
-inline constexpr auto HanaTuple = decltype(boost::hana::is_a<boost::hana::tuple_tag>(std::declval<T>()))::value;
+concept HanaTuple = decltype(boost::hana::is_a<boost::hana::tuple_tag>(std::declval<T>()))::value;
 //! @endcode
 
 
@@ -251,7 +250,7 @@ struct is_fusion_adapted_struct<T, std::enable_if_t<
  */
 //! @cond
 template <typename T>
-inline constexpr auto FusionAdaptedStruct = is_fusion_adapted_struct<std::decay_t<T>>::value;
+concept FusionAdaptedStruct = is_fusion_adapted_struct<std::decay_t<T>>::value;
 //! @endcode
 
 /**
@@ -262,7 +261,7 @@ inline constexpr auto FusionAdaptedStruct = is_fusion_adapted_struct<std::decay_
  */
 //! @cond
 template <typename T>
-inline constexpr auto Integral = std::is_integral_v<std::decay_t<T>>;
+concept Integral = std::is_integral_v<std::decay_t<T>>;
 //! @endcode
 
 /**
@@ -273,7 +272,7 @@ inline constexpr auto Integral = std::is_integral_v<std::decay_t<T>>;
  */
 //! @cond
 template <typename T>
-inline constexpr auto FloatingPoint = std::is_floating_point_v<std::decay_t<T>>;
+concept FloatingPoint = std::is_floating_point_v<std::decay_t<T>>;
 //! @endcode
 
 namespace detail {
@@ -352,7 +351,7 @@ using is_raw_data_readable = std::bool_constant<
  * @hideinitializer
  */
 template <typename T>
-inline constexpr auto RawDataWritable = is_raw_data_writable<std::remove_reference_t<T>>::value;
+concept RawDataWritable = is_raw_data_writable<std::remove_reference_t<T>>::value;
 
 /**
  * @brief `RawDataReadable` concept
@@ -376,13 +375,11 @@ inline constexpr auto RawDataWritable = is_raw_data_writable<std::remove_referen
  * @hideinitializer
  */
 template <typename T>
-inline constexpr auto RawDataReadable = is_raw_data_readable<std::remove_reference_t<T>>::value;
+concept RawDataReadable = is_raw_data_readable<std::remove_reference_t<T>>::value;
 
-template <typename T, typename = std::void_t<>>
-struct is_emplaceable : std::false_type {};
-
+// Retained for backward compatibility with code referring to the trait directly.
 template <typename T>
-struct is_emplaceable<T, std::void_t<decltype(std::declval<T&>().emplace())>> : std::true_type {};
+using is_emplaceable = std::bool_constant<requires (T& v) { v.emplace(); }>;
 
 /**
  * @brief Emplaceable concept
@@ -392,7 +389,7 @@ struct is_emplaceable<T, std::void_t<decltype(std::declval<T&>().emplace())>> : 
  * @hideinitializer
  */
 template <typename T>
-inline constexpr auto Emplaceable = is_emplaceable<std::decay_t<T>>::value;
+concept Emplaceable = requires (std::decay_t<T>& v) { v.emplace(); };
 
 template <typename T>
 struct is_time_constraint : std::false_type {};
@@ -412,7 +409,7 @@ struct is_time_constraint : std::false_type {};
  */
 //! @cond
 template <typename T>
-inline constexpr auto TimeConstraint = is_time_constraint<std::decay_t<T>>::value;
+concept TimeConstraint = is_time_constraint<std::decay_t<T>>::value;
 //! @endcond
 
 /**
