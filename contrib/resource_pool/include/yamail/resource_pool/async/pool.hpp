@@ -5,6 +5,8 @@
 #include <yamail/resource_pool/handle.hpp>
 #include <yamail/resource_pool/async/detail/pool_impl.hpp>
 
+#include <boost/asio/any_io_executor.hpp>
+#include <boost/asio/execution_context.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/async_result.hpp>
 
@@ -12,35 +14,35 @@ namespace yamail {
 namespace resource_pool {
 namespace async {
 
-template <class Value, class Mutex, class IoContext>
+template <class Value, class Mutex, class Executor>
 struct default_pool_queue {
     using value_type = Value;
-    using io_context_t = IoContext;
+    using executor_type = Executor;
     using mutex_t = Mutex;
     using idle = resource_pool::detail::idle<value_type>;
     using list = std::list<idle>;
     using list_iterator = typename list::iterator;
-    using type = detail::queue<detail::list_iterator_handler<value_type>, mutex_t, io_context_t, time_traits::timer>;
+    using type = detail::queue<detail::list_iterator_handler<value_type>, mutex_t, executor_type, time_traits::timer>;
 };
 
-template <class Value, class Mutex, class IoContext>
+template <class Value, class Mutex, class Executor>
 struct default_pool_impl {
     using type = typename detail::pool_impl<
         Value,
         Mutex,
-        IoContext,
-        typename default_pool_queue<Value, Mutex, IoContext>::type
+        Executor,
+        typename default_pool_queue<Value, Mutex, Executor>::type
     >;
 };
 
 template <class Value,
           class Mutex = std::mutex,
-          class IoContext = boost::asio::io_context,
-          class Impl = typename default_pool_impl<Value, Mutex, IoContext>::type >
+          class Executor = boost::asio::any_io_executor,
+          class Impl = typename default_pool_impl<Value, Mutex, Executor>::type >
 class pool {
 public:
     using value_type = Value;
-    using io_context_t = IoContext;
+    using executor_type = Executor;
     using pool_impl = Impl;
     using handle = resource_pool::handle<value_type>;
 
@@ -107,23 +109,41 @@ public:
     // the pool could only be driven with a plain callable. Initiating this way
     // supports any completion token.
     template <class CompletionToken>
-    auto get_auto_waste(io_context_t& io_context, CompletionToken&& token,
+    auto get_auto_waste(const executor_type& executor, CompletionToken&& token,
                         time_traits::duration wait_duration = time_traits::duration(0)) {
         return asio::async_initiate<CompletionToken, signature>(
-            [this](auto&& handler, io_context_t* io, time_traits::duration wait) {
-                this->get(*io, std::forward<decltype(handler)>(handler), &handle::waste, wait);
+            [this](auto&& handler, executor_type ex, time_traits::duration wait) {
+                this->get(ex, std::forward<decltype(handler)>(handler), &handle::waste, wait);
             },
-            token, std::addressof(io_context), wait_duration);
+            token, executor, wait_duration);
     }
 
     template <class CompletionToken>
-    auto get_auto_recycle(io_context_t& io_context, CompletionToken&& token,
+    auto get_auto_recycle(const executor_type& executor, CompletionToken&& token,
                           time_traits::duration wait_duration = time_traits::duration(0)) {
         return asio::async_initiate<CompletionToken, signature>(
-            [this](auto&& handler, io_context_t* io, time_traits::duration wait) {
-                this->get(*io, std::forward<decltype(handler)>(handler), &handle::recycle, wait);
+            [this](auto&& handler, executor_type ex, time_traits::duration wait) {
+                this->get(ex, std::forward<decltype(handler)>(handler), &handle::recycle, wait);
             },
-            token, std::addressof(io_context), wait_duration);
+            token, executor, wait_duration);
+    }
+
+    // Convenience overloads for callers holding an execution context. The pool
+    // itself only ever needs the executor.
+    template <class ExecutionContext, class CompletionToken,
+              class = std::enable_if_t<std::is_convertible_v<ExecutionContext&, asio::execution_context&>>>
+    auto get_auto_waste(ExecutionContext& context, CompletionToken&& token,
+                        time_traits::duration wait_duration = time_traits::duration(0)) {
+        return get_auto_waste(executor_type(context.get_executor()),
+                              std::forward<CompletionToken>(token), wait_duration);
+    }
+
+    template <class ExecutionContext, class CompletionToken,
+              class = std::enable_if_t<std::is_convertible_v<ExecutionContext&, asio::execution_context&>>>
+    auto get_auto_recycle(ExecutionContext& context, CompletionToken&& token,
+                          time_traits::duration wait_duration = time_traits::duration(0)) {
+        return get_auto_recycle(executor_type(context.get_executor()),
+                                std::forward<CompletionToken>(token), wait_duration);
     }
 
     void invalidate() {
@@ -186,11 +206,11 @@ private:
     std::shared_ptr<pool_impl> _impl;
 
     template <class UseStrategy, class Handler>
-    void get(io_context_t &io_context, Handler&& handler, UseStrategy&& use_strategy, time_traits::duration wait_duration) {
+    void get(const executor_type& executor, Handler&& handler, UseStrategy&& use_strategy, time_traits::duration wait_duration) {
         _impl->get(
-            io_context,
+            executor,
             make_on_get_handler(std::forward<UseStrategy>(use_strategy), std::forward<Handler>(handler),
-                                io_context.get_executor()),
+                                executor),
             wait_duration
         );
     }

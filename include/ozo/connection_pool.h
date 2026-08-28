@@ -336,12 +336,8 @@ public:
     /**
      * @brief Get a connection from the pool, bound to the given executor
      *
-     * @note The vendored `resource_pool` still acquires against an
-     * `io_context&` rather than an executor, so this recovers the execution
-     * context from the executor. That restricts the pool -- but not a plain
-     * `connection_info` -- to executors whose context is an `io_context`, which
-     * covers `io_context::executor_type` and strands over it. Replacing the
-     * pool removes this last restriction; see issue #5.
+     * The connection is acquired on, and bound to, the given executor, so a
+     * pooled connection can be driven from a strand or any other executor.
      */
     template <typename TimeConstraint, typename Handler>
     void operator ()(asio::any_io_executor ex, TimeConstraint t, Handler&& handler);

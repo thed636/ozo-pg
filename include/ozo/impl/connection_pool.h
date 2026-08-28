@@ -111,13 +111,8 @@ template <typename Source, typename ThreadSafety>
 template <typename TimeConstraint, typename Handler>
 void connection_pool<Source, ThreadSafety>::operator ()(asio::any_io_executor ex, TimeConstraint t, Handler&& handler) {
     static_assert(ozo::TimeConstraint<TimeConstraint>, "should model TimeConstraint concept");
-    // Transitional: resource_pool acquires against an execution context, so the
-    // context is recovered from the executor here. The connection itself is
-    // still bound to the executor that was passed in, so a strand is honoured
-    // for everything except the acquisition. See issue #5.
-    auto& context = static_cast<io_context&>(asio::query(ex, asio::execution::context));
     impl_.get_auto_recycle(
-        context,
+        ex,
         detail::wrap_pooled_connection_handler(
             ex,
             source_,

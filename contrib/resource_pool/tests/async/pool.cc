@@ -22,13 +22,13 @@ struct mocked_pool_impl : pool_returns<resource> {
     MOCK_CONST_METHOD0(available, std::size_t ());
     MOCK_CONST_METHOD0(used, std::size_t ());
     MOCK_CONST_METHOD0(stats, async::stats ());
-    MOCK_METHOD3(get, void (mocked_io_context&, const callback&, time_traits::duration));
+    MOCK_METHOD3(get, void (const mocked_executor&, const callback&, time_traits::duration));
     MOCK_METHOD1(recycle, void (list_iterator));
     MOCK_METHOD1(waste, void (list_iterator));
     MOCK_METHOD0(disable, void ());
 };
 
-using resource_pool = pool<resource, std::mutex, mocked_io_context, StrictMock<mocked_pool_impl>>;
+using resource_pool = pool<resource, std::mutex, mocked_executor, StrictMock<mocked_pool_impl>>;
 
 using boost::system::error_code;
 
@@ -141,7 +141,7 @@ TEST_F(async_resource_pool, get_auto_recylce_handle_should_call_recycle) {
     EXPECT_CALL(*pool_impl, recycle(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_recycle(io, check_no_error());
+    pool.get_auto_recycle(executor_wrapper, check_no_error());
     on_get(error_code(), resource_iterator);
 }
 
@@ -153,7 +153,7 @@ TEST_F(async_resource_pool, get_auto_waste_handle_should_call_waste) {
     EXPECT_CALL(*pool_impl, waste(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_waste(io, check_no_error());
+    pool.get_auto_waste(executor_wrapper, check_no_error());
     on_get(error_code(), resource_iterator);
 }
 
@@ -173,7 +173,7 @@ TEST_F(async_resource_pool, get_auto_recylce_handle_and_recycle_should_call_recy
     EXPECT_CALL(*pool_impl, recycle(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_recycle(io, recycle_resource());
+    pool.get_auto_recycle(executor_wrapper, recycle_resource());
     on_get(error_code(), resource_iterator);
 }
 
@@ -185,7 +185,7 @@ TEST_F(async_resource_pool, get_auto_waste_handle_and_recycle_should_call_recycl
     EXPECT_CALL(*pool_impl, recycle(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_waste(io, recycle_resource());
+    pool.get_auto_waste(executor_wrapper, recycle_resource());
     on_get(error_code(), resource_iterator);
 }
 
@@ -205,7 +205,7 @@ TEST_F(async_resource_pool, get_auto_recylce_handle_and_waste_should_call_waste_
     EXPECT_CALL(*pool_impl, waste(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_recycle(io, waste_resource());
+    pool.get_auto_recycle(executor_wrapper, waste_resource());
     on_get(error_code(), resource_iterator);
 }
 
@@ -217,7 +217,7 @@ TEST_F(async_resource_pool, get_auto_waste_handle_and_waste_should_call_waste_on
     EXPECT_CALL(*pool_impl, waste(_)).WillOnce(Return());
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_waste(io, waste_resource());
+    pool.get_auto_waste(executor_wrapper, waste_resource());
     on_get(error_code(), resource_iterator);
 }
 
@@ -230,7 +230,7 @@ TEST_F(async_resource_pool, get_from_pool_returns_error_should_not_call_waste_or
     EXPECT_CALL(*pool_impl, recycle(_)).Times(0);
     EXPECT_CALL(*pool_impl, disable()).WillOnce(Return());
 
-    pool.get_auto_waste(io, check_error(error::get_resource_timeout));
+    pool.get_auto_waste(executor_wrapper, check_error(error::get_resource_timeout));
     on_get(make_error_code(error::get_resource_timeout), mocked_pool_impl::list_iterator());
 }
 
