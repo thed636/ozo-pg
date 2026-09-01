@@ -14,6 +14,16 @@
 namespace ozo {
 
 namespace asio = boost::asio;
+
+/**
+ * @brief A Boost.Asio executor
+ *
+ * Accepts both the current executor model and the older one, since Boost
+ * still ships types satisfying only the latter.
+ */
+template <typename T>
+concept AsioExecutor = asio::execution::is_executor<std::decay_t<T>>::value
+    || asio::is_executor<std::decay_t<T>>::value;
 using asio::async_completion;
 using asio::io_context;
 
@@ -50,8 +60,7 @@ auto make_strand_executor(const Executor& ex) {
  */
 template <typename Executor>
 struct operation_timer {
-    static_assert(asio::execution::is_executor<Executor>::value
-                    || asio::is_executor<Executor>::value,
+    static_assert(AsioExecutor<Executor>,
         "operation_timer<> requires a Boost.Asio executor; specialize it for other types");
 
     using type = asio::basic_waitable_timer<
@@ -93,8 +102,7 @@ inline auto get_operation_timer(const Executor& ex) {
  */
 template <typename Executor>
 struct connection_stream {
-    static_assert(asio::execution::is_executor<Executor>::value
-                    || asio::is_executor<Executor>::value,
+    static_assert(AsioExecutor<Executor>,
         "connection_stream<> requires a Boost.Asio executor; specialize it for other types");
 
     using type = asio::posix::basic_stream_descriptor<Executor>;

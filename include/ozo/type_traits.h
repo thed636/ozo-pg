@@ -161,13 +161,15 @@ struct array;
 
 namespace detail {
 
-template <typename Traits, typename = std::void_t<>>
+// Traits are considered defined once they name the PostgreSQL type.
+template <typename T>
+concept HasTypeName = requires { requires !std::is_void_v<typename T::name>; };
+
+template <typename Traits>
 struct is_type_traits_defined : std::false_type {};
 
-template <typename T>
-struct is_type_traits_defined<T, Require<
-    !std::is_void_v<typename T::name>
->> : std::true_type {};
+template <HasTypeName T>
+struct is_type_traits_defined<T> : std::true_type {};
 
 template <typename T>
 inline auto get_type_traits(const T&) {
@@ -288,13 +290,6 @@ template <size_type n>
 using bytes = size_constant<n>;
 struct dynamic_size : size_constant<-1> {};
 
-template <typename T, typename = std::void_t<>>
-struct is_built_in : std::false_type {};
-
-template <typename T>
-struct is_built_in<T, std::enable_if_t<
-    !std::is_void_v<typename type_traits<T>::oid>>
-> : std::true_type {};
 
 /**
  * @brief Condition indicates if the specified type is built-in for PG
@@ -303,10 +298,9 @@ struct is_built_in<T, std::enable_if_t<
  * @hideinitializer
  */
 template <typename T>
-inline constexpr bool BuiltIn = is_built_in<std::decay_t<T>>::value;
-
-template <typename T>
-struct is_dynamic_size : std::is_same<typename type_traits<T>::size, dynamic_size> {};
+concept BuiltIn = requires {
+    requires !std::is_void_v<typename type_traits<std::decay_t<T>>::oid>;
+};
 
 /**
  * @brief Condition indicates if the specified type is has dynamic size
@@ -315,7 +309,7 @@ struct is_dynamic_size : std::is_same<typename type_traits<T>::size, dynamic_siz
  * @hideinitializer
  */
 template <typename T>
-concept DynamicSize = is_dynamic_size<std::decay_t<T>>::value;
+concept DynamicSize = std::is_same_v<typename type_traits<std::decay_t<T>>::size, dynamic_size>;
 
 /**
  * @brief Condition indicates if the specified type is has fixed size
@@ -580,7 +574,7 @@ inline constexpr empty_oid_map empty_oid_map_c;
 */
 template <typename T, typename ...Ts>
 inline void set_type_oid(oid_map_t<Ts...>& map, oid_t oid) noexcept {
-    static_assert(!is_built_in<T>::value, "type must not be built-in");
+    static_assert(!BuiltIn<T>, "type must not be built-in");
     map.impl[hana::type_c<T>] = oid;
 }
 
@@ -597,7 +591,7 @@ oid_t type_oid(const OidMap& map) noexcept;
 #else
 template <typename T, typename ...Ts>
 inline auto type_oid(const oid_map_t<Ts...>& map) noexcept
-        -> Require<!BuiltIn<T>, oid_t> {
+        -> oid_t requires (!BuiltIn<T>) {
     constexpr auto key = hana::type_c<unwrap_type<T>>;
     static_assert(decltype(hana::find(map.impl, key) != hana::nothing)::value,
         "type OID for T can not be found in the OidMap, it should be registered via register_type()");
@@ -606,7 +600,7 @@ inline auto type_oid(const oid_map_t<Ts...>& map) noexcept
 
 template <typename T, typename OidMap>
 constexpr auto type_oid(const OidMap&) noexcept
-        -> Require<BuiltIn<T>, oid_t> {
+        -> oid_t requires (BuiltIn<T>) {
     static_assert(ozo::OidMap<OidMap>, "map should model OidMap concept");
     return typename type_traits<T>::oid();
 }

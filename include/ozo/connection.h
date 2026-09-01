@@ -512,17 +512,20 @@ inline std::string_view get_password(const Connection& conn);
 
 namespace detail {
 
-template <typename ConnectionProvider, typename = std::void_t<>>
-struct get_connection_type_default {};
+template <typename T>
+concept HasConnectionType = requires { typename T::connection_type; };
 
 template <typename ConnectionProvider>
-struct get_connection_type_default<ConnectionProvider,
-    std::void_t<typename ConnectionProvider::connection_type>> {
+struct get_connection_type_default {};
+
+template <HasConnectionType ConnectionProvider>
+struct get_connection_type_default<ConnectionProvider> {
     using type = typename ConnectionProvider::connection_type;
 };
 
 template <typename T>
-struct get_connection_type_default<T, Require<ozo::Connection<T>>> {
+    requires ozo::Connection<T>
+struct get_connection_type_default<T> {
     using type = T;
 };
 
@@ -627,12 +630,11 @@ namespace detail {
 // A ConnectionSource is invoked with an executor rather than an execution
 // context, which is what allows a connection to be bound to a strand.
 template <typename Source, typename TimeTraits>
-concept ConnectionSourceInvocable = requires (
-        Source& source,
-        asio::any_io_executor ex,
-        TimeTraits t,
-        handler_signature<Source> handler) {
-    source(std::move(ex), std::move(t), std::move(handler));
+concept ConnectionSourceInvocable = requires {
+    std::declval<Source&>()(
+        std::declval<asio::any_io_executor>(),
+        std::declval<TimeTraits>(),
+        std::declval<handler_signature<Source>>());
 };
 
 // A source has to accept every kind of time constraint the library can hand it.
@@ -642,9 +644,6 @@ concept connection_source_defined =
     && ConnectionSourceInvocable<T, time_traits::duration>
     && ConnectionSourceInvocable<T, none_t>;
 } // namespace detail
-
-template <typename T>
-using is_connection_source = std::bool_constant<detail::connection_source_defined<T>>;
 
 template <typename T>
 struct connection_source_traits {
@@ -688,7 +687,7 @@ struct connection_source_traits {
  */
 //! @cond
 template <typename T>
-concept ConnectionSource = is_connection_source<std::decay_t<T>>::value;
+concept ConnectionSource = detail::connection_source_defined<std::decay_t<T>>;
 //! @endcond
 
 template <typename Provider, typename TimeConstraint, typename Handler>
@@ -701,18 +700,23 @@ constexpr auto async_get_connection(Provider&& p, TimeConstraint t, Handler&& h)
 }
 
 namespace detail {
-template <typename Provider, typename TimeConstraint, typename = std::void_t<>>
-struct connection_provider_supports_time_constraint : std::false_type {};
-
 template <typename Provider, typename TimeConstraint>
-struct connection_provider_supports_time_constraint<Provider, TimeConstraint, std::void_t<decltype(
+concept ConnectionProviderInvocable = requires {
     async_get_connection(
         std::declval<Provider&>(),
         std::declval<TimeConstraint>(),
-        std::declval<handler_signature<Provider>>()
-    )
-)>> : std::true_type {};
+        std::declval<handler_signature<Provider>>());
+};
 
+// The default answer is the concept above, but the trait stays specializable:
+// a type can be declared conforming without actually providing the operation,
+// which is how a test double is admitted without a real implementation.
+template <typename Provider, typename TimeConstraint>
+struct connection_provider_supports_time_constraint {
+    using type = std::bool_constant<ConnectionProviderInvocable<Provider, TimeConstraint>>;
+};
+
+// A provider has to accept every kind of time constraint the library can hand it.
 template <typename T>
 using async_get_connection_defined = std::conjunction<
     typename connection_provider_supports_time_constraint<T, none_t>::type,
@@ -721,9 +725,6 @@ using async_get_connection_defined = std::conjunction<
 >;
 
 } // namespace detail
-
-template <typename T>
-using is_connection_provider = typename detail::async_get_connection_defined<T>::type;
 
 template <typename T>
 struct connection_provider_traits {
@@ -768,7 +769,7 @@ struct connection_provider_traits {
  */
 //! @cond
 template <typename T>
-concept ConnectionProvider = is_connection_provider<std::decay_t<T>>::value;
+concept ConnectionProvider = detail::async_get_connection_defined<std::decay_t<T>>::value;
 //! @endcond
 
 #ifdef OZO_DOCUMENTATION

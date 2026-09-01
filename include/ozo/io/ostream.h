@@ -33,26 +33,30 @@ public:
     }
 
     template <typename T>
-    Require<Integral<T> && sizeof(T) == 1, ostream&> write(T in) {
+    requires (Integral<T> && sizeof(T) == 1)
+    ostream& write(T in) {
         return put(static_cast<char_type>(in));
     }
 
     template <typename T>
-    Require<RawDataReadable<T>, ostream&> write(const T& in) {
+    requires (RawDataReadable<T>)
+    ostream& write(const T& in) {
         using std::data;
         using std::size;
         return write(reinterpret_cast<const char_type*>(data(in)), size(in));
     }
 
     template <typename T>
-    Require<Integral<T> && sizeof(T) != 1, ostream&> write(T in) {
+    requires (Integral<T> && sizeof(T) != 1)
+    ostream& write(T in) {
         detail::typed_buffer<T> buf;
         buf.typed = detail::convert_to_big_endian(in);
         return write(buf.raw);
     }
 
     template <typename T>
-    Require<FloatingPoint<T>, ostream&> write(T in) {
+    requires (FloatingPoint<T>)
+    ostream& write(T in) {
         return write(detail::to_integral(in));
     }
 
@@ -62,13 +66,15 @@ public:
     }
 
     template <typename T>
-    Require<HanaSequence<T>, ostream&> write(const T& in) {
+    requires (HanaSequence<T>)
+    ostream& write(const T& in) {
         hana::for_each(in, [&](auto& item) { write(item); });
         return *this;
     }
 
     template <typename T>
-    Require<HanaStruct<T>, ostream&> write(const T& in) {
+    requires (HanaStruct<T>)
+    ostream& write(const T& in) {
         return write(hana::members(in));
     }
 

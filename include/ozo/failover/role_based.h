@@ -369,14 +369,12 @@ struct role_based_connection_source {
     }
 
     template <typename OtherRole>
-    constexpr auto rebind_role(OtherRole r) const & ->
-            Require<is_supported<OtherRole>(), role_based_connection_source<SourcesMap, OtherRole>> {
+    constexpr auto rebind_role(OtherRole r) const & -> role_based_connection_source<SourcesMap, OtherRole> requires (is_supported<OtherRole>()) {
         return {sources_, r};
     }
 
     template <typename OtherRole>
-    constexpr auto rebind_role(OtherRole r) && ->
-            Require<is_supported<OtherRole>(), role_based_connection_source<SourcesMap, OtherRole>> {
+    constexpr auto rebind_role(OtherRole r) && -> role_based_connection_source<SourcesMap, OtherRole> requires (is_supported<OtherRole>()) {
         return {std::move(sources_), r};
     }
 

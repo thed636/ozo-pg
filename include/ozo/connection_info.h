@@ -90,16 +90,12 @@ public:
      * This is what allows a connection to run on a strand, or on any other
      * executor, rather than directly on an `io_context`.
      */
-    template <typename Executor, typename = std::enable_if_t<
-        asio::execution::is_executor<std::decay_t<Executor>>::value
-            || asio::is_executor<std::decay_t<Executor>>::value>>
+    template <AsioExecutor Executor>
     auto operator [](Executor&& ex) const & {
         return connection_provider(*this, std::forward<Executor>(ex));
     }
 
-    template <typename Executor, typename = std::enable_if_t<
-        asio::execution::is_executor<std::decay_t<Executor>>::value
-            || asio::is_executor<std::decay_t<Executor>>::value>>
+    template <AsioExecutor Executor>
     auto operator [](Executor&& ex) && {
         return connection_provider(std::move(*this), std::forward<Executor>(ex));
     }

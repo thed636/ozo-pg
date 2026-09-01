@@ -59,7 +59,7 @@ struct send_impl{
 
 namespace detail {
 
-template <typename T, typename = std::void_t<>>
+template <typename T>
 struct send_impl_dispatcher { using type = send_impl<std::decay_t<T>>; };
 
 template <typename T, typename Tag>

@@ -479,12 +479,9 @@ public:
         return ozo::make_query(get_description<QueryT>());
     }
 
-    template <class QueryT, class ... ParametersT,
-        typename = Require<
-            std::is_same_v<typename typed_query_traits<QueryT>::parameters_type,
-            std::tuple<std::decay_t<ParametersT> ...>>
-        >
-    >
+    template <class QueryT, class ... ParametersT>
+        requires std::is_same_v<typename typed_query_traits<QueryT>::parameters_type,
+                                std::tuple<std::decay_t<ParametersT> ...>>
     auto make_query(ParametersT&& ... parameters) const {
         return make_query<QueryT>(std::make_tuple(std::forward<ParametersT>(parameters) ...));
     }

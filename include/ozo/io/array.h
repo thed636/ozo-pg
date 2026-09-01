@@ -109,7 +109,8 @@ struct size_of_array_impl {
 };
 
 template <typename T>
-struct size_of_impl_dispatcher<T, Require<Array<T>>> { using type = size_of_array_impl<std::decay_t<T>>; };
+requires Array<T>
+struct size_of_impl_dispatcher<T> { using type = size_of_array_impl<std::decay_t<T>>; };
 
 template <typename T>
 struct send_array_impl {
@@ -124,7 +125,8 @@ struct send_array_impl {
 };
 
 template <typename T>
-struct send_impl_dispatcher<T, Require<Array<T>>> { using type = send_array_impl<std::decay_t<T>>; };
+requires Array<T>
+struct send_impl_dispatcher<T> { using type = send_array_impl<std::decay_t<T>>; };
 
 template <typename T>
 struct recv_array_impl {
@@ -171,6 +173,7 @@ struct recv_array_impl {
 };
 
 template <typename T>
-struct recv_impl_dispatcher<T, Require<Array<T>>> { using type = recv_array_impl<std::decay_t<T>>; };
+requires Array<T>
+struct recv_impl_dispatcher<T> { using type = recv_array_impl<std::decay_t<T>>; };
 
 } // namespace ozo::detail
