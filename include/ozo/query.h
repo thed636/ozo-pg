@@ -107,14 +107,6 @@ inline constexpr detail::result_of<to_const_char_impl, T> to_const_char(const T&
 }
 #endif
 
-template <class, class = std::void_t<>>
-struct is_query_text : std::false_type {};
-
-template <class T>
-struct is_query_text<T, std::void_t<
-    decltype(ozo::to_const_char(std::declval<const T&>()))
->> : std::true_type {};
-
 /**
  * @brief %Query text concept
  *
@@ -136,7 +128,7 @@ struct is_query_text<T, std::void_t<
  */
 //! @cond
 template <typename T>
-concept QueryText = is_query_text<std::decay_t<T>>::value;
+concept QueryText = requires (const std::decay_t<T>& v) { ozo::to_const_char(v); };
 //! @endcond
 
 template <typename T, typename = hana::when<true>>
@@ -224,18 +216,6 @@ inline constexpr detail::result_of<get_query_params_impl, T> get_query_params(T&
 }
 #endif
 
-template <class, class = std::void_t<>>
-struct is_query : std::false_type {};
-
-template <class T>
-struct is_query<T, std::void_t<
-    decltype(get_query_text(std::declval<const T&>())),
-    decltype(get_query_params(std::declval<const T&>()))
->> : std::bool_constant<
-    QueryText<decltype(get_query_text(std::declval<const T&>()))>
-    && HanaSequence<decltype(get_query_params(std::declval<const T&>()))>
-> {};
-
 /**
  * @brief %Query concept
  *
@@ -264,8 +244,13 @@ static_assert(ozo::HanaSequence<decltype(ozo::get_query_params(query))>);
  * @ingroup group-query-concepts
  */
 //! @cond
+// Both parts have to be there, and each has to model its own concept.
 template <typename T>
-concept Query = is_query<std::decay_t<T>>::value;
+concept Query = requires (const std::decay_t<T>& v) {
+    get_query_text(v);
+    get_query_params(v);
+} && QueryText<decltype(get_query_text(std::declval<const std::decay_t<T>&>()))>
+  && HanaSequence<decltype(get_query_params(std::declval<const std::decay_t<T>&>()))>;
 //! @endcond
 
 /**
@@ -300,12 +285,12 @@ inline constexpr auto make_query(const char* text, ParamsT&& ... params) {
     return make_query(std::string_view(text), std::forward<ParamsT>(params)...);
 }
 
-template <class T, class = Require<Query<T>>>
+template <class T> requires Query<T>
 decltype(auto) get_text(const T& query) {
     return get_query_text(query);
 }
 
-template <class T, class = Require<Query<T>>>
+template <class T> requires Query<T>
 decltype(auto) get_params(const T& query) {
     return get_query_params(query);
 }

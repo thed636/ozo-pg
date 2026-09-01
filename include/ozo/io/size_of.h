@@ -55,7 +55,7 @@ struct size_of_impl;
 
 namespace detail {
 
-template <typename T, typename = std::void_t<>>
+template <typename T>
 struct size_of_default_impl {
     static constexpr auto apply(const T&) noexcept {
         return typename type_traits<T>::size{};
@@ -63,13 +63,14 @@ struct size_of_default_impl {
 };
 
 template <typename T>
-struct size_of_default_impl<T, Require<DynamicSize<T>>> {
+requires DynamicSize<T>
+struct size_of_default_impl<T> {
     static constexpr auto apply(const T& v) noexcept(noexcept(std::size(v))){
         return std::size(v) * sizeof(decltype(*std::begin(v)));
     }
 };
 
-template <typename T, typename = std::void_t<>>
+template <typename T>
 struct size_of_impl_dispatcher { using type = size_of_impl<std::decay_t<T>>; };
 
 template <typename T, typename Tag>

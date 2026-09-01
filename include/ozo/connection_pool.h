@@ -361,9 +361,7 @@ public:
      * Connections taken from the pool are bound to the given executor, so a
      * pooled connection can be driven from a strand.
      */
-    template <typename Executor, typename = std::enable_if_t<
-        asio::execution::is_executor<std::decay_t<Executor>>::value
-            || asio::is_executor<std::decay_t<Executor>>::value>>
+    template <AsioExecutor Executor>
     auto operator [](Executor&& ex) {
         return connection_provider(*this, asio::any_io_executor(std::forward<Executor>(ex)));
     }

@@ -20,47 +20,25 @@ namespace ozo {
 /**
  * @defgroup group-core-concepts Concepts
  * @ingroup group-core
- * @brief Library-wide concepts emulation mechanism
+ * @brief Library-wide concepts
  *
- * We decide to use Concept-style meta programming to make easy to extend, adapt and test the
- * library. So here is our own reinvented wheel of C++ Concepts built on template constants and
- * std::enable_if.
- */
-///@{
-/**
-* @brief Concept requirement emulation
-*
-* This is requirement simulation type, which is the alias to std::enable_if_t.
-* It is pretty simple to use it with pseudo-concepts such as OperatorNot, Iterable and so on.
-* E.g. overloading functions via Require:
-* @code
+ * The library is built around concepts, so that it is easy to extend, adapt and
+ * test. They are C++20 concepts, constraining templates directly:
+ *
+ * @code
     template <typename T>
-    decltype(auto) unwrap(T&& c, Require<!Nullable<T>>* = 0) {
+    decltype(auto) unwrap(T&& c) requires (!Nullable<T>) {
         return c;
     }
 
-    template <typename T>
-    decltype(auto) unwrap(T&& c, Require<Nullable<T>>* = 0) {
+    template <Nullable T>
+    decltype(auto) unwrap(T&& c) {
         return *c;
     }
-* @endcode
-*
-* @tparam Condition - logical combination of concepts.
-* @tparam Type - return type, *void* by default.
-* @returns Type if Condition is true
-*/
-template <bool Condition, typename Type = void>
-#ifdef OZO_DOCUMENTATION
-using Require = Type;
-#else
-using Require = std::enable_if_t<Condition, Type>;
-#endif
+ * @endcode
+ */
+///@{
 
-
-// Retained for backward compatibility: the concept below is the definition, and
-// this alias exists only for code that referred to the trait directly.
-template <typename T>
-using has_operator_not = std::bool_constant<requires (T t) { !t; }>;
 
 /**
  * @brief Negation operator support concept
@@ -74,17 +52,6 @@ template <typename T>
 concept OperatorNot = requires (std::decay_t<T> t) { !t; };
 //! @endcond
 
-template <typename T, typename Enable = void>
-struct is_output_iterator : std::false_type {};
-
-template <typename T>
-struct is_output_iterator<T, typename std::enable_if<
-    std::is_base_of<
-        std::output_iterator_tag,
-        typename std::iterator_traits<T>::iterator_category
-    >::value
->::type>
-: std::true_type {};
 
 /**
  * @brief Output Iterator concept
@@ -95,20 +62,13 @@ struct is_output_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-concept OutputIterator = is_output_iterator<T>::value;
+concept OutputIterator = requires {
+    requires std::is_base_of_v<
+        std::output_iterator_tag,
+        typename std::iterator_traits<T>::iterator_category>;
+};
 //! @endcond
 
-template <typename T, typename Enable = void>
-struct is_forward_iterator : std::false_type {};
-
-template <typename T>
-struct is_forward_iterator<T, typename std::enable_if<
-    std::is_base_of<
-        std::forward_iterator_tag,
-        typename std::iterator_traits<T>::iterator_category
-    >::value
->::type>
-: std::true_type {};
 
 /**
  * @brief Forward Iterator concept
@@ -119,18 +79,13 @@ struct is_forward_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-concept ForwardIterator = is_forward_iterator<T>::value;
+concept ForwardIterator = requires {
+    requires std::is_base_of_v<
+        std::forward_iterator_tag,
+        typename std::iterator_traits<T>::iterator_category>;
+};
 //! @endcond
 
-template <typename T, typename Enable = void>
-struct is_iterable : std::false_type {};
-
-template <typename T>
-struct is_iterable<T, typename std::enable_if<
-    is_forward_iterator<decltype(begin(std::declval<T>()))>::value &&
-        is_forward_iterator<decltype(end(std::declval<T>()))>::value
->::type>
-: std::true_type {};
 
 /**
  * @brief Iterable concept
@@ -146,17 +101,13 @@ struct is_iterable<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-concept Iterable = is_iterable<T>::value;
+concept Iterable = requires (T v) {
+    begin(v);
+    end(v);
+} && ForwardIterator<decltype(begin(std::declval<T>()))>
+  && ForwardIterator<decltype(end(std::declval<T>()))>;
 //! @endcond
 
-template <typename T, typename Enable = void>
-struct is_insert_iterator : std::false_type {};
-
-template <typename T>
-struct is_insert_iterator<T, typename std::enable_if<
-    is_output_iterator<T>::value && std::is_class<typename T::container_type>::value
->::type>
-: std::true_type {};
 
 /**
  * @brief Insert Iterator concept
@@ -169,7 +120,9 @@ struct is_insert_iterator<T, typename std::enable_if<
  */
 //! @cond
 template <typename T>
-concept InsertIterator = is_insert_iterator<T>::value;
+concept InsertIterator = OutputIterator<T> && requires {
+    requires std::is_class_v<typename T::container_type>;
+};
 //! @endcode
 
 /**
@@ -228,16 +181,6 @@ concept HanaTuple = decltype(boost::hana::is_a<boost::hana::tuple_tag>(std::decl
 //! @endcode
 
 
-template <typename T, typename = std::void_t<>>
-struct is_fusion_adapted_struct : std::false_type {};
-
-template <typename T>
-struct is_fusion_adapted_struct<T, std::enable_if_t<
-    std::is_same_v<
-        typename boost::fusion::traits::tag_of<T>::type,
-        boost::fusion::struct_tag
-    >
->> : std::true_type {};
 
 
 /**
@@ -250,7 +193,13 @@ struct is_fusion_adapted_struct<T, std::enable_if_t<
  */
 //! @cond
 template <typename T>
-concept FusionAdaptedStruct = is_fusion_adapted_struct<std::decay_t<T>>::value;
+concept FusionAdaptedStruct = requires {
+    // Boost.Fusion tags every adapted type; a struct adapted through the
+    // adaptation macros is tagged struct_tag.
+    requires std::is_same_v<
+        typename boost::fusion::traits::tag_of<std::decay_t<T>>::type,
+        boost::fusion::struct_tag>;
+};
 //! @endcode
 
 /**
@@ -277,27 +226,33 @@ concept FloatingPoint = std::is_floating_point_v<std::decay_t<T>>;
 
 namespace detail {
 
-template <typename T, typename = std::void_t<>>
+// Detection and the answer it produces, kept together: the type has to offer
+// std::data and std::size, and the pointer std::data yields must be writable
+// unless the container itself is const.
+template <typename T>
+concept has_std_size_data = requires (T& v) { std::data(v) + std::size(v); };
+
+template <typename T>
 struct std_size_data_compatible {
     static constexpr bool value = false;
 };
 
-template <typename T>
-struct std_size_data_compatible<T, std::void_t<
-    decltype(std::data(std::declval<T&>())+std::size(std::declval<T&>()))>
-> {
+template <has_std_size_data T>
+struct std_size_data_compatible<T> {
     static constexpr bool value = !std::is_const_v<std::remove_pointer_t<decltype(std::data(std::declval<T&>()))>> || std::is_const_v<T>;
 };
 
-template <typename T, typename = std::void_t<>>
+// The same, for data() and size() found by argument-dependent lookup.
+template <typename T>
+concept has_adl_size_data = requires (T& v) { data(v) + size(v); };
+
+template <typename T>
 struct adl_size_data_compatible {
     static constexpr bool value = false;
 };
 
-template <typename T>
-struct adl_size_data_compatible<T, std::void_t<
-    decltype(data(std::declval<T&>())+size(std::declval<T&>()))>
-> {
+template <has_adl_size_data T>
+struct adl_size_data_compatible<T> {
     static constexpr bool value = !std::is_const_v<std::remove_pointer_t<decltype(data(std::declval<T&>()))>> || std::is_const_v<T>;
 };
 
@@ -319,15 +274,6 @@ constexpr std::size_t sizeof_value_type() {
 
 } // namespace detail
 
-template <typename T>
-using is_raw_data_writable = std::bool_constant<
-    !std::is_const_v<T> && detail::sizeof_value_type<T>() == 1
->;
-
-template <typename T>
-using is_raw_data_readable = std::bool_constant<
-    detail::sizeof_value_type<std::add_const_t<T>>() == 1
->;
 
 /**
  * @brief `RawDataWritable` concept
@@ -351,7 +297,9 @@ using is_raw_data_readable = std::bool_constant<
  * @hideinitializer
  */
 template <typename T>
-concept RawDataWritable = is_raw_data_writable<std::remove_reference_t<T>>::value;
+concept RawDataWritable =
+    !std::is_const_v<std::remove_reference_t<T>>
+    && detail::sizeof_value_type<std::remove_reference_t<T>>() == 1;
 
 /**
  * @brief `RawDataReadable` concept
@@ -375,11 +323,7 @@ concept RawDataWritable = is_raw_data_writable<std::remove_reference_t<T>>::valu
  * @hideinitializer
  */
 template <typename T>
-concept RawDataReadable = is_raw_data_readable<std::remove_reference_t<T>>::value;
-
-// Retained for backward compatibility with code referring to the trait directly.
-template <typename T>
-using is_emplaceable = std::bool_constant<requires (T& v) { v.emplace(); }>;
+concept RawDataReadable = detail::sizeof_value_type<std::add_const_t<std::remove_reference_t<T>>>() == 1;
 
 /**
  * @brief Emplaceable concept

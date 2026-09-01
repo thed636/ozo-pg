@@ -124,7 +124,7 @@ struct recv_impl {
 
 namespace detail {
 
-template <typename T, typename = std::void_t<>>
+template <typename T>
 struct recv_impl_dispatcher { using type = recv_impl<std::decay_t<T>>; };
 
 template <typename T>
@@ -252,8 +252,8 @@ void recv(const value<T>& in, const OidMap& oids, Out& out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<!FusionSequence<Out> && !FusionAdaptedStruct<Out> && !HanaStruct<Out>>
-recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
+requires (!FusionSequence<Out> && !FusionAdaptedStruct<Out> && !HanaStruct<Out>)
+void recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
     if (std::size(in) != 1) {
         throw std::range_error("row size " + std::to_string(std::size(in))
             + " does not equal 1 for single column result");
@@ -263,8 +263,8 @@ recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<FusionSequence<Out> && !FusionAdaptedStruct<Out> && !HanaStruct<Out>>
-recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
+requires (FusionSequence<Out> && !FusionAdaptedStruct<Out> && !HanaStruct<Out>)
+void recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 
     if (static_cast<std::size_t>(fusion::size(out)) != std::size(in)) {
         throw std::range_error("row size " + std::to_string(std::size(in))
@@ -280,8 +280,8 @@ recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<FusionAdaptedStruct<Out> && !HanaStruct<Out>>
-recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
+requires (FusionAdaptedStruct<Out> && !HanaStruct<Out>)
+void recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 
     if (static_cast<std::size_t>(fusion::size(out)) != std::size(in)) {
         throw std::range_error("row size " + std::to_string(std::size(in))
@@ -302,8 +302,8 @@ recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<HanaStruct<Out>>
-recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
+requires (HanaStruct<Out>)
+void recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 
     const auto keys = hana::keys(out);
     const auto size = size_type(hana::value(hana::size(keys)));
@@ -326,8 +326,8 @@ recv_row(const row<T>& in, const OidMap& oid_map, Out& out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<ForwardIterator<Out>, Out>
-recv_result(const basic_result<T>& in, const OidMap& oid_map, Out out) {
+requires (ForwardIterator<Out>)
+Out recv_result(const basic_result<T>& in, const OidMap& oid_map, Out out) {
     for (auto row : in) {
         recv_row(row, oid_map, *out++);
     }
@@ -335,8 +335,8 @@ recv_result(const basic_result<T>& in, const OidMap& oid_map, Out out) {
 }
 
 template <typename T, typename OidMap, typename Out>
-Require<InsertIterator<Out>, Out>
-recv_result(const basic_result<T>& in, const OidMap& oid_map, Out out) {
+requires (InsertIterator<Out>)
+Out recv_result(const basic_result<T>& in, const OidMap& oid_map, Out out) {
     for (auto row : in) {
         typename Out::container_type::value_type v{};
         recv_row(row, oid_map, v);

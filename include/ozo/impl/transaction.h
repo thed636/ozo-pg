@@ -68,7 +68,8 @@ auto make_async_start_transaction_op(Handler&& handler, Options&& options) {
 }
 
 template <typename T, typename Options, typename Query, typename TimeConstraint, typename Handler>
-Require<ConnectionProvider<T>> async_start_transaction(T&& provider, Options&& options, Query&& query,
+requires (ConnectionProvider<T>)
+void async_start_transaction(T&& provider, Options&& options, Query&& query,
         TimeConstraint t, Handler&& handler) {
     make_async_start_transaction_op(std::forward<Handler>(handler), std::forward<Options>(options))
         .perform(std::forward<T>(provider), std::forward<Query>(query), t);
@@ -109,7 +110,8 @@ auto make_async_end_transaction_op(Handler&& handler) {
 }
 
 template <typename T, typename Query, typename TimeConstraint, typename Handler>
-Require<ConnectionProvider<T>> async_end_transaction(T&& provider, Query&& query,
+requires (ConnectionProvider<T>)
+void async_end_transaction(T&& provider, Query&& query,
         TimeConstraint t, Handler&& handler) {
     make_async_end_transaction_op(std::forward<Handler>(handler))
         .perform(std::forward<T>(provider), std::forward<Query>(query), t);

@@ -24,22 +24,26 @@ constexpr T byte_order_swap(T value, std::index_sequence<N ...>) noexcept {
 }
 
 template <class T, class U = std::make_unsigned_t<T>>
-constexpr Require<endian::native == endian::little, U> convert_to_big_endian(T value) noexcept {
+requires (endian::native == endian::little)
+constexpr U convert_to_big_endian(T value) noexcept {
     return byte_order_swap<U>(value, std::make_index_sequence<sizeof(T)> {});
 }
 
 template <class T>
-constexpr Require<endian::native == endian::big, T> convert_to_big_endian(T value) noexcept {
+requires (endian::native == endian::big)
+constexpr T convert_to_big_endian(T value) noexcept {
     return value;
 }
 
 template <class T, class U = std::make_unsigned_t<T>>
-constexpr Require<endian::native == endian::little, U> convert_from_big_endian(T value) noexcept {
+requires (endian::native == endian::little)
+constexpr U convert_from_big_endian(T value) noexcept {
     return byte_order_swap<U>(value, std::make_index_sequence<sizeof(T)> {});
 }
 
 template <class T>
-constexpr Require<endian::native == endian::big, T> convert_from_big_endian(T value) noexcept {
+requires (endian::native == endian::big)
+constexpr T convert_from_big_endian(T value) noexcept {
     return value;
 }
 

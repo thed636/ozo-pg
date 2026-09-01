@@ -30,23 +30,23 @@ constexpr auto size_of(const pg_composite&) noexcept {
 }
 
 template <typename T>
-constexpr auto fields_number(const T& v) -> Require<FusionSequence<T>&&!HanaStruct<T>, size_type> {
+constexpr auto fields_number(const T& v) -> size_type requires (FusionSequence<T>&&!HanaStruct<T>) {
     return size_type(fusion::size(v));
 }
 
 template <typename T>
-constexpr auto fields_number(const T& v) -> Require<HanaStruct<T>, size_type> {
+constexpr auto fields_number(const T& v) -> size_type requires (HanaStruct<T>) {
     return size_type(hana::value(hana::size(hana::members(v))));
 }
 
 template <typename T>
-constexpr auto data_size(const T& v) -> Require<FusionSequence<T>&&!HanaStruct<T>, size_type> {
+constexpr auto data_size(const T& v) -> size_type requires (FusionSequence<T>&&!HanaStruct<T>) {
     return fusion::fold(v, size_type(0),
         [&] (auto r, const auto& item) { return r + frame_size(item); });
 }
 
 template <typename T>
-constexpr auto data_size(const T& v)  -> Require<HanaStruct<T>, size_type>{
+constexpr auto data_size(const T& v)  -> size_type requires (HanaStruct<T>){
     return hana::unpack(hana::members(v),
         [&] (const auto& ...x) { return (frame_size(x) + ... + 0); });
 }
@@ -61,17 +61,18 @@ struct size_of_composite {
 };
 
 template <typename T, typename Func>
-constexpr auto for_each_member(T&& v, Func&& f) -> Require<FusionSequence<T>&&!HanaStruct<T>> {
+constexpr auto for_each_member(T&& v, Func&& f) -> void requires (FusionSequence<T>&&!HanaStruct<T>) {
     fusion::for_each(std::forward<T>(v), std::forward<Func>(f));
 }
 
 template <typename T, typename Func>
-constexpr auto for_each_member(T&& v, Func&& f)  -> Require<HanaStruct<T>>{
+constexpr auto for_each_member(T&& v, Func&& f)  -> void requires (HanaStruct<T>){
     hana::for_each(hana::members(std::forward<T>(v)), std::forward<Func>(f));
 }
 
 template <typename T>
-struct size_of_impl_dispatcher<T, Require<Composite<T>>> { using type = size_of_composite<std::decay_t<T>>; };
+requires Composite<T>
+struct size_of_impl_dispatcher<T> { using type = size_of_composite<std::decay_t<T>>; };
 
 template <typename T>
 struct send_composite_impl {
@@ -86,10 +87,12 @@ struct send_composite_impl {
 };
 
 template <typename T>
-struct send_impl_dispatcher<T, Require<Composite<T>>> { using type = send_composite_impl<std::decay_t<T>>; };
+requires Composite<T>
+struct send_impl_dispatcher<T> { using type = send_composite_impl<std::decay_t<T>>; };
 
 template <typename T>
-inline Require<Composite<T>> read_and_verify_header(istream& in, const T& v) {
+requires (Composite<T>)
+inline void read_and_verify_header(istream& in, const T& v) {
     pg_composite header;
     read(in, header);
     if (header.count != fields_number(v)) {
@@ -125,12 +128,14 @@ struct recv_hana_adapted_composite_impl {
 };
 
 template <typename T>
-struct recv_impl_dispatcher<T, Require<Composite<T>&&FusionSequence<T>>> {
+requires (Composite<T> && FusionSequence<T>)
+struct recv_impl_dispatcher<T> {
     using type = recv_fusion_adapted_composite_impl<std::decay_t<T>>;
 };
 
 template <typename T>
-struct recv_impl_dispatcher<T, Require<Composite<T>&&!FusionSequence<T>>> {
+requires (Composite<T> && !FusionSequence<T>)
+struct recv_impl_dispatcher<T> {
     using type = recv_hana_adapted_composite_impl<std::decay_t<T>>;
 };
 

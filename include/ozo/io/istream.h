@@ -54,20 +54,23 @@ public:
     operator bool() const noexcept { return !unexpected_eof_;}
 
     template <typename T>
-    Require<RawDataWritable<T>, istream&> read(T& out) {
+    requires (RawDataWritable<T>)
+    istream& read(T& out) {
         using std::data;
         using std::size;
         return read(reinterpret_cast<char_type*>(data(out)), size(out));
     }
 
     template <typename T>
-    Require<Integral<T> && sizeof(T) == 1, istream&> read(T& out) noexcept {
+    requires (Integral<T> && sizeof(T) == 1)
+    istream& read(T& out) noexcept {
         out = istream::traits_type::to_char_type(get());
         return *this;
     }
 
     template <typename T>
-    Require<Integral<T> && sizeof(T) != 1, istream&> read(T& out) noexcept {
+    requires (Integral<T> && sizeof(T) != 1)
+    istream& read(T& out) noexcept {
         detail::typed_buffer<T> buf;
         read(buf.raw);
         out = detail::convert_from_big_endian(buf.typed);
@@ -75,7 +78,8 @@ public:
     }
 
     template <typename T>
-    Require<FloatingPoint<T>, istream&> read(T& out) noexcept {
+    requires (FloatingPoint<T>)
+    istream& read(T& out) noexcept {
         detail::floating_point_integral_t<T> tmp;
         read(tmp);
         out = detail::to_floating_point(tmp);
@@ -90,7 +94,8 @@ public:
     }
 
     template <typename T>
-    Require<HanaStruct<T>, istream&> read(T& out) {
+    requires (HanaStruct<T>)
+    istream& read(T& out) {
         hana::for_each(hana::keys(out), [&](auto key) {
             read(hana::at_key(out, key));
         });
